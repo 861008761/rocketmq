@@ -96,6 +96,9 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
 import org.apache.rocketmq.remoting.exception.RemotingTimeoutException;
 import org.apache.rocketmq.remoting.exception.RemotingTooMuchRequestException;
 
+/**
+ * 默认的消息生产者实现，DefaultMQProducer的send方法其实都是都是调用的这个Impl类。
+ */
 public class DefaultMQProducerImpl implements MQProducerInner {
     private final InternalLogger log = ClientLogger.getLog();
     private final Random random = new Random();
@@ -121,6 +124,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         this(defaultMQProducer, null);
     }
 
+    /**
+     * 生产者默认实现类构造函数
+     *
+     * @param defaultMQProducer 调用方对象
+     * @param rpcHook 钩子函数
+     */
     public DefaultMQProducerImpl(final DefaultMQProducer defaultMQProducer, RPCHook rpcHook) {
         this.defaultMQProducer = defaultMQProducer;
         this.rpcHook = rpcHook;

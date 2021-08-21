@@ -139,9 +139,9 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     }
 
     /**
-     * Constructor specifying producer group.
+     * 指定生产者组的构造函数
      *
-     * @param producerGroup Producer group, see the name-sake field.
+     * @param producerGroup 生产者组
      */
     public DefaultMQProducer(final String producerGroup) {
         this(null, producerGroup, null);
@@ -197,11 +197,11 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     }
 
     /**
-     * Constructor specifying namespace, producer group and RPC hook.
+     * 指定namespace，生产者组和rpc hook的构造函数
      *
-     * @param namespace Namespace for this MQ Producer instance.
-     * @param producerGroup Producer group, see the name-sake field.
-     * @param rpcHook RPC hook to execute per each remoting command execution.
+     * @param namespace 这个消息队列生产者实例的namespace
+     * @param producerGroup 生产者组
+     * @param rpcHook 用于执行每个远程命令的rpchook，发送消息前以及响应回来后都会回调这个钩子
      */
     public DefaultMQProducer(final String namespace, final String producerGroup, RPCHook rpcHook) {
         this.namespace = namespace;
