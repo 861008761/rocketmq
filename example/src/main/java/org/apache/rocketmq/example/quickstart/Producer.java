@@ -46,7 +46,7 @@ public class Producer {
         /**
          * 设置namesrv地址
          */
-        producer.setNamesrvAddr("192.168.10.130:9876");
+        producer.setNamesrvAddr("127.0.0.1:9876");
 
         /*
          * 启动producer
@@ -57,7 +57,6 @@ public class Producer {
             try {
 
                 /*
-                 * Create a message instance, specifying topic, tag and message body.
                  * 创建消息
                  */
                 Message msg = new Message("TopicTest" /* Topic */,
@@ -66,7 +65,6 @@ public class Producer {
                 );
 
                 /*
-                 * Call send message to deliver message to one of brokers.
                  * 发送消息
                  */
                 SendResult sendResult = producer.send(msg);

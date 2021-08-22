@@ -78,9 +78,15 @@ public class Validators {
         return matcher.matches();
     }
 
+    /**
+     * 检查消息合法性：空消息、空消息体、消息体长度超过最大值、topic空、topic命名规范、topic最大长度
+     * @param msg
+     * @param defaultMQProducer
+     * @throws MQClientException
+     */
     public static void checkMessage(Message msg, DefaultMQProducer defaultMQProducer)
         throws MQClientException {
-        if (null == msg) {
+        if (null == msg) { // 空消息
             throw new MQClientException(ResponseCode.MESSAGE_ILLEGAL, "the message is null");
         }
         // topic
@@ -88,32 +94,32 @@ public class Validators {
         Validators.isNotAllowedSendTopic(msg.getTopic());
 
         // body
-        if (null == msg.getBody()) {
+        if (null == msg.getBody()) { // 空消息体
             throw new MQClientException(ResponseCode.MESSAGE_ILLEGAL, "the message body is null");
         }
 
-        if (0 == msg.getBody().length) {
+        if (0 == msg.getBody().length) { // 空消息体
             throw new MQClientException(ResponseCode.MESSAGE_ILLEGAL, "the message body length is zero");
         }
 
-        if (msg.getBody().length > defaultMQProducer.getMaxMessageSize()) {
+        if (msg.getBody().length > defaultMQProducer.getMaxMessageSize()) { // 消息体长度超过最大值，默认4M
             throw new MQClientException(ResponseCode.MESSAGE_ILLEGAL,
                 "the message body size over max value, MAX: " + defaultMQProducer.getMaxMessageSize());
         }
     }
 
     public static void checkTopic(String topic) throws MQClientException {
-        if (UtilAll.isBlank(topic)) {
+        if (UtilAll.isBlank(topic)) { // topic为空
             throw new MQClientException("The specified topic is blank", null);
         }
 
-        if (!regularExpressionMatcher(topic, PATTERN)) {
+        if (!regularExpressionMatcher(topic, PATTERN)) { // topic命令规范
             throw new MQClientException(String.format(
                 "The specified topic[%s] contains illegal characters, allowing only %s", topic,
                 VALID_PATTERN_STR), null);
         }
 
-        if (topic.length() > TOPIC_MAX_LENGTH) {
+        if (topic.length() > TOPIC_MAX_LENGTH) { // topic长度
             throw new MQClientException(
                 String.format("The specified topic is longer than topic max length %d.", TOPIC_MAX_LENGTH), null);
         }
@@ -127,7 +133,7 @@ public class Validators {
     }
 
     public static void isNotAllowedSendTopic(String topic) throws MQClientException {
-        if (TopicValidator.isNotAllowedSendTopic(topic)) {
+        if (TopicValidator.isNotAllowedSendTopic(topic)) { // 客户端不允许发送集合
             throw new MQClientException(
                     String.format("Sending message to topic[%s] is forbidden.", topic), null);
         }

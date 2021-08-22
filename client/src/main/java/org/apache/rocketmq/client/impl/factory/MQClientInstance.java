@@ -352,9 +352,14 @@ public class MQClientInstance {
         return clientId;
     }
 
+    /**
+     * MQ客户端实例启动时，调用此方法获取topic路由信息
+     */
     public void updateTopicRouteInfoFromNameServer() {
+        // 从消费者端和生产者端获取topic名字的集合
         Set<String> topicList = new HashSet<String>();
 
+        // 把消费者端和生产者端里面所有topic取出来塞到topicList集合中
         // Consumer
         {
             Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
@@ -385,6 +390,7 @@ public class MQClientInstance {
             }
         }
 
+        // 遍历topic集合，更新topic路由信息
         for (String topic : topicList) {
             this.updateTopicRouteInfoFromNameServer(topic);
         }
