@@ -269,8 +269,18 @@ public class MQClientInstance {
         }
     }
 
+    /**
+     * 开启调度任务
+     * 获取namesrv
+     * 从nameserv获取topic信息的任务
+     * 清除下线的broker，然后往所有的broker发送心跳消息
+     * 持久化所有消费者偏移量
+     * 调整消费者线程池
+     *
+     */
     private void startScheduledTask() {
-        if (null == this.clientConfig.getNamesrvAddr()) {
+        // 获取namesrv 两分钟执行一次
+        if (null == this.clientConfig.getNamesrvAddr()) { // 如果没有namesrv
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
                 @Override
@@ -284,6 +294,7 @@ public class MQClientInstance {
             }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
         }
 
+        // 从nameserv获取topic信息的任务，默认是30s拉取一次
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -296,6 +307,7 @@ public class MQClientInstance {
             }
         }, 10, this.clientConfig.getPollNameServerInterval(), TimeUnit.MILLISECONDS);
 
+        // 清除下线的broker，然后往所有的broker发送心跳消息，默认也是30s。
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -309,6 +321,7 @@ public class MQClientInstance {
             }
         }, 1000, this.clientConfig.getHeartbeatBrokerInterval(), TimeUnit.MILLISECONDS);
 
+        // 持久化所有消费者偏移量 默认5秒执行一次
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -321,6 +334,7 @@ public class MQClientInstance {
             }
         }, 1000 * 10, this.clientConfig.getPersistConsumerOffsetInterval(), TimeUnit.MILLISECONDS);
 
+        // 调整消费者线程池 一分钟执行一次
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
