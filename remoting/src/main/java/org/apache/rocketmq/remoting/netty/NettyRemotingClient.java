@@ -99,17 +99,28 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         this(nettyClientConfig, null);
     }
 
+    /**
+     * 首先是调用父类的构造，创建2个信号量Semaphore，这两个分别用来对单向发送，异步发送进行限流，默认是65535；
+     * 之后就是创建public线程池，这个线程池主要是用来处理你注册那堆processor，默认线程数是cpu核心数；
+     * 再往后就是创建netty niogroup组就1个线程，这个主要是用来处理连接的；
+     * 最后就是判断是否使用ssl，使用的话创建ssl context。
+     * @param nettyClientConfig
+     * @param channelEventListener
+     */
     public NettyRemotingClient(final NettyClientConfig nettyClientConfig,
         final ChannelEventListener channelEventListener) {
+        // 设置 异步 与 单向 请求的信号量
         super(nettyClientConfig.getClientOnewaySemaphoreValue(), nettyClientConfig.getClientAsyncSemaphoreValue());
-        this.nettyClientConfig = nettyClientConfig;
-        this.channelEventListener = channelEventListener;
+        this.nettyClientConfig = nettyClientConfig; // netty配置文件
+        this.channelEventListener = channelEventListener; // listener
 
+        // netty客户端回调线程数，默认是cpu核心数
         int publicThreadNums = nettyClientConfig.getClientCallbackExecutorThreads();
         if (publicThreadNums <= 0) {
             publicThreadNums = 4;
         }
 
+        // 创建线程池 主要是用来处理注册的那堆processor，如MQClientAPIImpl构造函数中注册的processor
         this.publicExecutor = Executors.newFixedThreadPool(publicThreadNums, new ThreadFactory() {
             private AtomicInteger threadIndex = new AtomicInteger(0);
 
@@ -119,6 +130,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             }
         });
 
+        // selector线程是1
         this.eventLoopGroupWorker = new NioEventLoopGroup(1, new ThreadFactory() {
             private AtomicInteger threadIndex = new AtomicInteger(0);
 
@@ -128,6 +140,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             }
         });
 
+        // 是否启用tls
         if (nettyClientConfig.isUseTLS()) {
             try {
                 sslContext = TlsHelper.buildSslContext(true);
@@ -147,10 +160,15 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
         return Math.abs(r.nextInt() % 999) % 999;
     }
 
+    /**
+     * 这里其实就是netty client 创建过程，有些参数需要注意下，比如它默认使用4个线程的线程池来处理定义的那堆handler；
+     * 再就是netty的一些参数，tcp的参数，往后看启动了一个定时任务，主要是用来扫描响应表的，
+     * 其实就是把超时的响应进行回调，或者是返回，这个任务是1s执行一次。
+     */
     @Override
     public void start() {
         this.defaultEventExecutorGroup = new DefaultEventExecutorGroup(
-            nettyClientConfig.getClientWorkerThreads(),
+            nettyClientConfig.getClientWorkerThreads(), // 默认是4个线程
             new ThreadFactory() {
 
                 private AtomicInteger threadIndex = new AtomicInteger(0);
@@ -162,17 +180,17 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             });
 
         Bootstrap handler = this.bootstrap.group(this.eventLoopGroupWorker).channel(NioSocketChannel.class)
-            .option(ChannelOption.TCP_NODELAY, true)
-            .option(ChannelOption.SO_KEEPALIVE, false)
-            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, nettyClientConfig.getConnectTimeoutMillis())
-            .option(ChannelOption.SO_SNDBUF, nettyClientConfig.getClientSocketSndBufSize())
-            .option(ChannelOption.SO_RCVBUF, nettyClientConfig.getClientSocketRcvBufSize())
+            .option(ChannelOption.TCP_NODELAY, true) // 不使用tcp中的DELAY算法，就是有小包也要发出去
+            .option(ChannelOption.SO_KEEPALIVE, false) // keepalive关闭
+            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, nettyClientConfig.getConnectTimeoutMillis()) // 连接超时，默认是3s
+            .option(ChannelOption.SO_SNDBUF, nettyClientConfig.getClientSocketSndBufSize()) // 发送buffer大小，默认是65535
+            .option(ChannelOption.SO_RCVBUF, nettyClientConfig.getClientSocketRcvBufSize()) // 接收buffer大小，默认是65535
             .handler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
                     ChannelPipeline pipeline = ch.pipeline();
-                    if (nettyClientConfig.isUseTLS()) {
-                        if (null != sslContext) {
+                    if (nettyClientConfig.isUseTLS()) { // 是否启用tls
+                        if (null != sslContext) { // 启用tls，就添加sls的handler
                             pipeline.addFirst(defaultEventExecutorGroup, "sslHandler", sslContext.newHandler(ch.alloc()));
                             log.info("Prepend SSL handler");
                         } else {
@@ -180,12 +198,12 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                         }
                     }
                     pipeline.addLast(
-                        defaultEventExecutorGroup,
-                        new NettyEncoder(),
-                        new NettyDecoder(),
-                        new IdleStateHandler(0, 0, nettyClientConfig.getClientChannelMaxIdleTimeSeconds()),
-                        new NettyConnectManageHandler(),
-                        new NettyClientHandler());
+                        defaultEventExecutorGroup, // 使用这个线程组来处理下面这些handler，默认是4个线程
+                        new NettyEncoder(), // 编码
+                        new NettyDecoder(), // 解码
+                        new IdleStateHandler(0, 0, nettyClientConfig.getClientChannelMaxIdleTimeSeconds()), // 心跳
+                        new NettyConnectManageHandler(), // 连接管理器
+                        new NettyClientHandler()); // 客户端处理器 处理接收到的消息
                 }
             });
 
@@ -193,7 +211,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             @Override
             public void run() {
                 try {
-                    NettyRemotingClient.this.scanResponseTable();
+                    NettyRemotingClient.this.scanResponseTable(); // 扫描响应表
                 } catch (Throwable e) {
                     log.error("scanResponseTable exception", e);
                 }

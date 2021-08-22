@@ -108,7 +108,15 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     private final ArrayList<SendMessageHook> sendMessageHookList = new ArrayList<SendMessageHook>();
     private final ArrayList<EndTransactionHook> endTransactionHookList = new ArrayList<EndTransactionHook>();
     private final RPCHook rpcHook;
+    /**
+     * 异步发送线程池队列
+     */
     private final BlockingQueue<Runnable> asyncSenderThreadPoolQueue;
+    /**
+     * <p>异步发送的线程池</p>
+     * 在异步发送的时候，先把这个消息给DefaultMQProducer，然后它又把这个消息给了DefaultMQProducerImpl，
+     * 最后他就交给这个线程池。
+     */
     private final ExecutorService defaultAsyncSenderExecutor;
     private final Timer timer = new Timer("RequestHouseKeepingService", true);
     protected BlockingQueue<Runnable> checkRequestQueue;
@@ -134,7 +142,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         this.defaultMQProducer = defaultMQProducer;
         this.rpcHook = rpcHook;
 
+        // 5w大小的链表队列，异步发送线程池队列
         this.asyncSenderThreadPoolQueue = new LinkedBlockingQueue<Runnable>(50000);
+        // 异步发送的线程池
         this.defaultAsyncSenderExecutor = new ThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             Runtime.getRuntime().availableProcessors(),
@@ -188,23 +198,38 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         log.info("register endTransaction Hook, {}", hook.hookName());
     }
 
+    /**
+     * <p> 对外暴露的start方法 </p>
+     * 内部再调用一个带参数startFactory的start方法
+     *
+     * @throws MQClientException
+     */
     public void start() throws MQClientException {
         this.start(true);
     }
 
+    /**
+     * 带参数的start方法
+     *
+     * @param startFactory 要不要启动MQClientInstance。
+     * @throws MQClientException
+     */
     public void start(final boolean startFactory) throws MQClientException {
         switch (this.serviceState) {
             case CREATE_JUST:
-                this.serviceState = ServiceState.START_FAILED;
+                this.serviceState = ServiceState.START_FAILED; // 预先设置为启动失败状态
 
-                this.checkConfig();
+                this.checkConfig(); // 检查group配置
 
+                // 如果group组不是MixAll.CLIENT_INNER_PRODUCER_GROUP，就重新设置下实例名字
                 if (!this.defaultMQProducer.getProducerGroup().equals(MixAll.CLIENT_INNER_PRODUCER_GROUP)) {
                     this.defaultMQProducer.changeInstanceNameToPID();
                 }
 
+                // 使用MQClientManager 类创建一个MQClientInstance对象
                 this.mQClientFactory = MQClientManager.getInstance().getOrCreateMQClientInstance(this.defaultMQProducer, rpcHook);
 
+                // 进行注册
                 boolean registerOK = mQClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
                 if (!registerOK) {
                     this.serviceState = ServiceState.CREATE_JUST;
@@ -213,8 +238,10 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         null);
                 }
 
+                // 往存放topic信息表中放个topic信息
                 this.topicPublishInfoTable.put(this.defaultMQProducer.getCreateTopicKey(), new TopicPublishInfo());
 
+                // 最后是启动这个MQClientInstance对象
                 if (startFactory) {
                     mQClientFactory.start();
                 }
@@ -248,6 +275,10 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         }, 1000 * 3, 1000);
     }
 
+    /**
+     * 检查group配置
+     * @throws MQClientException
+     */
     private void checkConfig() throws MQClientException {
         Validators.checkGroup(this.defaultMQProducer.getProducerGroup());
 

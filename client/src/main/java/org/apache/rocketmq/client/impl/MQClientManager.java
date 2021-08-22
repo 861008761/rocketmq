@@ -25,6 +25,9 @@ import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.RPCHook;
 
+/**
+ * MQClientManager是个单例类
+ */
 public class MQClientManager {
     private final static InternalLogger log = ClientLogger.getLog();
     private static MQClientManager instance = new MQClientManager();
@@ -36,6 +39,10 @@ public class MQClientManager {
 
     }
 
+    /**
+     * MQClientManager单例对象
+     * @return
+     */
     public static MQClientManager getInstance() {
         return instance;
     }
@@ -44,13 +51,21 @@ public class MQClientManager {
         return getOrCreateMQClientInstance(clientConfig, null);
     }
 
+    /**
+     * 获取/创建MQ客户端实例 MQClientInstance
+     *
+     * @param clientConfig 客户端配置
+     * @param rpcHook 钩子函数
+     * @return
+     */
     public MQClientInstance getOrCreateMQClientInstance(final ClientConfig clientConfig, RPCHook rpcHook) {
-        String clientId = clientConfig.buildMQClientId();
-        MQClientInstance instance = this.factoryTable.get(clientId);
-        if (null == instance) {
+        String clientId = clientConfig.buildMQClientId(); // 获取客户端id
+        MQClientInstance instance = this.factoryTable.get(clientId); // 尝试从缓存factoryTable中获取MQClientInstance
+        if (null == instance) { // 如果没有，创建一个mq客户端实例，然后放到缓存factoryTable中
             instance =
                 new MQClientInstance(clientConfig.cloneClientConfig(),
                     this.factoryIndexGenerator.getAndIncrement(), clientId, rpcHook);
+            // 放入缓存factoryTable中，并返回实例。使用ConcurrentMap防止多线程问题，如果其他线程先put进去，则返回已经有的，不再重新创建
             MQClientInstance prev = this.factoryTable.putIfAbsent(clientId, instance);
             if (prev != null) {
                 instance = prev;

@@ -123,20 +123,31 @@ public class MQClientInstance {
         this(clientConfig, instanceIndex, clientId, null);
     }
 
+    /**
+     * 构造函数
+     *
+     * @param clientConfig 客户端配置
+     * @param instanceIndex 实例索引
+     * @param clientId 客户端id
+     * @param rpcHook 钩子函数
+     */
     public MQClientInstance(ClientConfig clientConfig, int instanceIndex, String clientId, RPCHook rpcHook) {
-        this.clientConfig = clientConfig;
-        this.instanceIndex = instanceIndex;
-        this.nettyClientConfig = new NettyClientConfig();
-        this.nettyClientConfig.setClientCallbackExecutorThreads(clientConfig.getClientCallbackExecutorThreads());
-        this.nettyClientConfig.setUseTLS(clientConfig.isUseTLS());
-        this.clientRemotingProcessor = new ClientRemotingProcessor(this);
+        this.clientConfig = clientConfig; // 客户端配置
+        this.instanceIndex = instanceIndex; // 实例索引
+        this.nettyClientConfig = new NettyClientConfig(); // netty客户端配置
+        this.nettyClientConfig.setClientCallbackExecutorThreads(clientConfig.getClientCallbackExecutorThreads()); // 设置netty客户端回调线程数
+        this.nettyClientConfig.setUseTLS(clientConfig.isUseTLS()); // 设置是否启动tls
+        this.clientRemotingProcessor = new ClientRemotingProcessor(this); // processor
+        // 调用netty client的接口
         this.mQClientAPIImpl = new MQClientAPIImpl(this.nettyClientConfig, this.clientRemotingProcessor, rpcHook, clientConfig);
 
+        // namesrv不是null的话，更新namesrv地址列表
         if (this.clientConfig.getNamesrvAddr() != null) {
             this.mQClientAPIImpl.updateNameServerAddressList(this.clientConfig.getNamesrvAddr());
             log.info("user specified name server address: {}", this.clientConfig.getNamesrvAddr());
         }
 
+        // 客户端id
         this.clientId = clientId;
 
         this.mQAdminImpl = new MQAdminImpl(this);
@@ -145,9 +156,11 @@ public class MQClientInstance {
 
         this.rebalanceService = new RebalanceService(this);
 
+        // 客户端内部的一个producer，它的组是MixAll.CLIENT_INNER_PRODUCER_GROUP
         this.defaultMQProducer = new DefaultMQProducer(MixAll.CLIENT_INNER_PRODUCER_GROUP);
         this.defaultMQProducer.resetClientConfig(clientConfig);
 
+        // 消费者状态管理器
         this.consumerStatsManager = new ConsumerStatsManager(this.scheduledExecutorService);
 
         log.info("Created a new client Instance, InstanceIndex:{}, ClientID:{}, ClientConfig:{}, ClientVersion:{}, SerializerType:{}",
@@ -221,20 +234,24 @@ public class MQClientInstance {
         return mqList;
     }
 
+    /**
+     * 启动mq客户端实例
+     * @throws MQClientException
+     */
     public void start() throws MQClientException {
 
         synchronized (this) {
             switch (this.serviceState) {
-                case CREATE_JUST:
+                case CREATE_JUST: // 服务刚创建，还没启动时
                     this.serviceState = ServiceState.START_FAILED;
                     // If not specified,looking address from name server
                     if (null == this.clientConfig.getNamesrvAddr()) {
                         this.mQClientAPIImpl.fetchNameServerAddr();
                     }
                     // Start request-response channel
-                    this.mQClientAPIImpl.start();
+                    this.mQClientAPIImpl.start(); // 生产者netty客户端初始化，并没有启动，还不知道broker地址
                     // Start various schedule tasks
-                    this.startScheduledTask();
+                    this.startScheduledTask(); // 开启任务调度
                     // Start pull service
                     this.pullMessageService.start();
                     // Start rebalance service
@@ -927,11 +944,19 @@ public class MQClientInstance {
         }
     }
 
+    /**
+     * 注册producer
+     * @param group
+     * @param producer
+     * @return
+     */
     public boolean registerProducer(final String group, final DefaultMQProducerImpl producer) {
-        if (null == group || null == producer) {
+        if (null == group || null == producer) { // 检查group和producer
             return false;
         }
 
+        // 放到缓存中（生产者表）
+        // producerTable在MQClientInstance里，就是一个客户端维护了多个producer，而且还是不同组的。
         MQProducerInner prev = this.producerTable.putIfAbsent(group, producer);
         if (prev != null) {
             log.warn("the producer group[{}] exist already.", group);

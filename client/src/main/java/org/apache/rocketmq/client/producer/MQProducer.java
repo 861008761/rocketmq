@@ -26,6 +26,9 @@ import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
+/**
+ * MQProducer 接口就是一堆send方法与start，shutdown方法，然后让DefaultMQProducer去实现。
+ */
 public interface MQProducer extends MQAdmin {
     void start() throws MQClientException;
 

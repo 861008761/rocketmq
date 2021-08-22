@@ -62,6 +62,12 @@ public class ClientConfig {
 
     private LanguageCode language = LanguageCode.JAVA;
 
+    /**
+     * 其实就是 ip@instanceName，如果unitName不为空，则为ip@instanceName@unitName
+     * 这个instanceName 没指定就是进程号。
+     *
+     * @return
+     */
     public String buildMQClientId() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.getClientIP());
@@ -92,6 +98,10 @@ public class ClientConfig {
         this.instanceName = instanceName;
     }
 
+    /**
+     * 重新设置一下instanceName
+     * <p>如果之前没指定，就用pid#系统时间，pid就是进程号；如果之前指定了，它就不会改了。</p>
+     */
     public void changeInstanceNameToPID() {
         if (this.instanceName.equals("DEFAULT")) {
             this.instanceName = UtilAll.getPid() + "#" + System.nanoTime();
