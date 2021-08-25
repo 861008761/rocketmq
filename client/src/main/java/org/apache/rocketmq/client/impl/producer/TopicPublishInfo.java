@@ -23,9 +23,15 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 
+/**
+ * topic的发布信息，如所在的消息队列列表，topic的路由信息，提供给消息生产者发送消息使用
+ */
 public class TopicPublishInfo {
     private boolean orderTopic = false;
+    // 用于判断是否有topic的路由信息
     private boolean haveTopicRouterInfo = false;
+    // 比如topicRouteData 里面返回2个broker ，然后每个broker的writeQueueNums个数是4个
+    // 这个时候它生成的MessageQueue就是8个，然后每个broker对应着4个MessageQueue。
     private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();
     private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();
     private TopicRouteData topicRouteData;

@@ -26,7 +26,7 @@ import java.util.List;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
 /**
- * 里面存了两部分内容，一是broker 地址信息，二是messagequeue 对应哪个broker上面
+ * topic的路由信息。里面存了两部分内容，一是broker 地址信息，二是messagequeue 对应哪个broker上面
  */
 public class TopicRouteData extends RemotingSerializable {
     private String orderTopicConf;
@@ -34,6 +34,10 @@ public class TopicRouteData extends RemotingSerializable {
     private List<BrokerData> brokerDatas;
     private HashMap<String/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
 
+    /**
+     * 复制一个路由对象
+     * @return
+     */
     public TopicRouteData cloneTopicRouteData() {
         TopicRouteData topicRouteData = new TopicRouteData();
         topicRouteData.setQueueDatas(new ArrayList<QueueData>());

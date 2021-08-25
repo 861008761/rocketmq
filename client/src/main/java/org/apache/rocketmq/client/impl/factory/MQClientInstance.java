@@ -170,9 +170,16 @@ public class MQClientInstance {
             MQVersion.getVersionDesc(MQVersion.CURRENT_VERSION), RemotingCommand.getSerializeTypeConfigInThisServer());
     }
 
+    /**
+     * 把topic路由信息转换为topic发布信息，提供给消息生产者发送消息使用
+     * @param topic
+     * @param route
+     * @return
+     */
     public static TopicPublishInfo topicRouteData2TopicPublishInfo(final String topic, final TopicRouteData route) {
         TopicPublishInfo info = new TopicPublishInfo();
         info.setTopicRouteData(route);
+        // 顺序消息
         if (route.getOrderTopicConf() != null && route.getOrderTopicConf().length() > 0) {
             String[] brokers = route.getOrderTopicConf().split(";");
             for (String broker : brokers) {
@@ -645,32 +652,43 @@ public class MQClientInstance {
             if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
                 try {
                     TopicRouteData topicRouteData;
+                    // 是默认且defaultMQProducer不为空，当topic不存在，主动请求创建topic
                     if (isDefault && defaultMQProducer != null) {
+                        // 先获取默认topic -> TBW102的路由信息
                         topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(),
                             1000 * 3);
                         if (topicRouteData != null) {
                             for (QueueData data : topicRouteData.getQueueDatas()) {
+                                // 取默认topic的队列信息，并结合当前生产者的topic队列配置调整队列数，防止与默认配置不一致
                                 int queueNums = Math.min(defaultMQProducer.getDefaultTopicQueueNums(), data.getReadQueueNums());
                                 data.setReadQueueNums(queueNums);
                                 data.setWriteQueueNums(queueNums);
                             }
                         }
                     } else {
+                        // 直接到namesrv上尝试取topic的路由信息
                         topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, 1000 * 3);
                     }
+                    // 成功的从namesrv上获取到topic的路由信息之后，进行下一步处理
                     if (topicRouteData != null) {
+                        // 先尝试从路由缓存表中取之前的路由信息（可能有，也可能没有）
                         TopicRouteData old = this.topicRouteTable.get(topic);
+                        // 对比old和当前的topicRouteData是否发生变化
                         boolean changed = topicRouteDataIsChange(old, topicRouteData);
                         if (!changed) {
+                            // topicRouteData没有变化，再判断所有生产者和所有消费者的topic信息是否需要更新
                             changed = this.isNeedUpdateTopicRouteInfo(topic);
                         } else {
                             log.info("the topic[{}] route info changed, old[{}] ,new[{}]", topic, old, topicRouteData);
                         }
 
+                        // 路由信息改变过，或者生产者或消费者需要更新
                         if (changed) {
                             TopicRouteData cloneTopicRouteData = topicRouteData.cloneTopicRouteData();
 
                             for (BrokerData bd : topicRouteData.getBrokerDatas()) {
+                                // 在主从模式中brokerName相同，brokerId为0表示master，非0表示Slave
+                                // 因此放进去的是一个key为brokerName，value为（key为brokerId，value为地址的map）地址列表的缓存
                                 this.brokerAddrTable.put(bd.getBrokerName(), bd.getBrokerAddrs());
                             }
 
@@ -679,6 +697,7 @@ public class MQClientInstance {
                                 TopicPublishInfo publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
                                 publishInfo.setHaveTopicRouterInfo(true);
                                 Iterator<Entry<String, MQProducerInner>> it = this.producerTable.entrySet().iterator();
+                                // 历更新各个producer，更新topicPublishInfoTable对应topic信息
                                 while (it.hasNext()) {
                                     Entry<String, MQProducerInner> entry = it.next();
                                     MQProducerInner impl = entry.getValue();
@@ -692,6 +711,7 @@ public class MQClientInstance {
                             {
                                 Set<MessageQueue> subscribeInfo = topicRouteData2TopicSubscribeInfo(topic, topicRouteData);
                                 Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
+                                // 历更新各个consumer，更新topicSubscribeInfoTable对应topic信息
                                 while (it.hasNext()) {
                                     Entry<String, MQConsumerInner> entry = it.next();
                                     MQConsumerInner impl = entry.getValue();
@@ -836,8 +856,16 @@ public class MQClientInstance {
 
     }
 
+    /**
+     * 判断topic是否需要更新topic路由信息
+     * 遍历生产者和消费者表中所有对象，判断是否需要更新其内容
+     *
+     * @param topic
+     * @return
+     */
     private boolean isNeedUpdateTopicRouteInfo(final String topic) {
         boolean result = false;
+        // 遍历生产者
         {
             Iterator<Entry<String, MQProducerInner>> it = this.producerTable.entrySet().iterator();
             while (it.hasNext() && !result) {
@@ -849,6 +877,7 @@ public class MQClientInstance {
             }
         }
 
+        // 遍历消费者
         {
             Iterator<Entry<String, MQConsumerInner>> it = this.consumerTable.entrySet().iterator();
             while (it.hasNext() && !result) {

@@ -627,11 +627,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         long beginTimestampPrev = beginTimestampFirst;
         long endTimestamp = beginTimestampFirst;
         TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
-        if (topicPublishInfo != null && topicPublishInfo.ok()) {
+        if (topicPublishInfo != null && topicPublishInfo.ok()) { // topic存在消息队列
             boolean callTimeout = false;
             MessageQueue mq = null;
             Exception exception = null;
             SendResult sendResult = null;
+            // 如果是同步模式，需要进行重试；否则只发送一次
             int timesTotal = communicationMode == CommunicationMode.SYNC ? 1 + this.defaultMQProducer.getRetryTimesWhenSendFailed() : 1;
             int times = 0;
             String[] brokersSent = new String[timesTotal];
@@ -767,14 +768,14 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         TopicPublishInfo topicPublishInfo = this.topicPublishInfoTable.get(topic); // 从缓存中找topic信息
         if (null == topicPublishInfo || !topicPublishInfo.ok()) { // 如果没有找到
             this.topicPublishInfoTable.putIfAbsent(topic, new TopicPublishInfo()); // 新建一个对象放到缓存中
-            this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic); // 先默认这个topic存在，直接向namesrv请求获取这个topic的信息
+            this.mQClientFactory.updateTopicRouteInfoFromNameServer(topic); // 1、先默认这个topic存在，直接向namesrv请求获取这个topic的信息
             topicPublishInfo = this.topicPublishInfoTable.get(topic);
         }
 
         if (topicPublishInfo.isHaveTopicRouterInfo() || topicPublishInfo.ok()) {
             return topicPublishInfo;
         } else {
-            // 发送某个消息的时候指定的那个topic不存在
+            // 2、如果发送消息的时候指定的那个topic不存在
             // 这个时候先获取一下默认topic的路由信息，这个默认topic是TBW102，发送消息就选择TBW102这个topic的broker发送，
             // broker收到消息后会自动创建这个topic，
             // 这里需要注意的是broker得支持自动创建，这里是有个参数配置的autoCreateTopicEnable 设置成true就可以了。
@@ -1451,6 +1452,17 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         this.asyncSenderExecutor = asyncSenderExecutor;
     }
 
+    /**
+     * 调用同步模式发送消息
+     *
+     * @param msg
+     * @param timeout
+     * @return
+     * @throws MQClientException
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
     public SendResult send(Message msg,
         long timeout) throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
         return this.sendDefaultImpl(msg, CommunicationMode.SYNC, null, timeout); // 指定同步发送
