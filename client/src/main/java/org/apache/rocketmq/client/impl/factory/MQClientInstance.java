@@ -646,6 +646,14 @@ public class MQClientInstance {
         }
     }
 
+    /**
+     * 使用remoting模块远程访问namesrv，从中获取topic路由信息
+     *
+     * @param topic
+     * @param isDefault
+     * @param defaultMQProducer
+     * @return
+     */
     public boolean updateTopicRouteInfoFromNameServer(final String topic, boolean isDefault,
         DefaultMQProducer defaultMQProducer) {
         try {
@@ -654,7 +662,7 @@ public class MQClientInstance {
                     TopicRouteData topicRouteData;
                     // 是默认且defaultMQProducer不为空，当topic不存在，主动请求创建topic
                     if (isDefault && defaultMQProducer != null) {
-                        // 先获取默认topic -> TBW102的路由信息
+                        // 访问namesrv服务，获取默认topic -> TBW102的路由信息
                         topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(),
                             1000 * 3);
                         if (topicRouteData != null) {
