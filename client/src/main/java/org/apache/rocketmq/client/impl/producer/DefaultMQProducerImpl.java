@@ -652,6 +652,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             // 此处循环有 “消息生产者在同步发送模式下具备容错能力” 的含义
             for (; times < timesTotal; times++) {
                 String lastBrokerName = null == mq ? null : mq.getBrokerName();
+                // 选择一个消息队列发送生产者消息
                 MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName);
                 if (mqSelected != null) {
                     mq = mqSelected;
@@ -662,6 +663,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             //Reset topic with namespace during resend.
                             msg.setTopic(this.defaultMQProducer.withNamespace(msg.getTopic()));
                         }
+                        // 每次重试都会增加总时长，计算总时长与超时时间之差，超时直接退出重试，防止花费大量时间重试
                         long costTime = beginTimestampPrev - beginTimestampFirst;
                         if (timeout < costTime) {
                             callTimeout = true;
@@ -800,6 +802,21 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         }
     }
 
+    /**
+     * 发送消息的实现
+     *
+     * @param msg
+     * @param mq
+     * @param communicationMode
+     * @param sendCallback
+     * @param topicPublishInfo
+     * @param timeout
+     * @return
+     * @throws MQClientException
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
     private SendResult sendKernelImpl(final Message msg,
                                       final MessageQueue mq,
                                       final CommunicationMode communicationMode,
@@ -815,12 +832,13 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
         SendMessageContext context = null;
         if (brokerAddr != null) {
+            // 判断是不是VIP通道，可能是阿里的VIP业务吧。。。，VIP通道就是端口减2
             brokerAddr = MixAll.brokerVIPChannel(this.defaultMQProducer.isSendMessageWithVIPChannel(), brokerAddr);
 
             byte[] prevBody = msg.getBody();
             try {
                 //for MessageBatch,ID has been set in the generating process
-                if (!(msg instanceof MessageBatch)) {
+                if (!(msg instanceof MessageBatch)) { // 批量消息的ID已经在生成阶段设置好了
                     MessageClientIDSetter.setUniqID(msg);
                 }
 
@@ -832,16 +850,19 @@ public class DefaultMQProducerImpl implements MQProducerInner {
 
                 int sysFlag = 0;
                 boolean msgBodyCompressed = false;
+                // 判断是否需要压缩消息，大于4k的消息需要压缩
                 if (this.tryToCompressMessage(msg)) {
-                    sysFlag |= MessageSysFlag.COMPRESSED_FLAG;
+                    sysFlag |= MessageSysFlag.COMPRESSED_FLAG; // 或运算，标志位增加压缩标志，服务端可根据标志位做对应操作
                     msgBodyCompressed = true;
                 }
 
+                // 事务消息标志位
                 final String tranMsg = msg.getProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED);
                 if (tranMsg != null && Boolean.parseBoolean(tranMsg)) {
                     sysFlag |= MessageSysFlag.TRANSACTION_PREPARED_TYPE;
                 }
 
+                // 判断是否有检查禁止项的钩子函数，没有看到实现类
                 if (hasCheckForbiddenHook()) {
                     CheckForbiddenContext checkForbiddenContext = new CheckForbiddenContext();
                     checkForbiddenContext.setNameSrvAddr(this.defaultMQProducer.getNamesrvAddr());
@@ -854,6 +875,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     this.executeCheckForbiddenHook(checkForbiddenContext);
                 }
 
+                // 判断是否有发送消息的钩子函数
                 if (this.hasSendMessageHook()) {
                     context = new SendMessageContext();
                     context.setProducer(this);
@@ -875,6 +897,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                     this.executeSendMessageHookBefore(context);
                 }
 
+                // 构造发送消息请求头
                 SendMessageRequestHeader requestHeader = new SendMessageRequestHeader();
                 requestHeader.setProducerGroup(this.defaultMQProducer.getProducerGroup());
                 requestHeader.setTopic(msg.getTopic());
@@ -888,6 +911,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 requestHeader.setReconsumeTimes(0);
                 requestHeader.setUnitMode(this.isUnitMode());
                 requestHeader.setBatch(msg instanceof MessageBatch);
+                // %RETRY% 重试topioc
                 if (requestHeader.getTopic().startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)) {
                     String reconsumeTimes = MessageAccessor.getReconsumeTime(msg);
                     if (reconsumeTimes != null) {
@@ -1000,7 +1024,14 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         return mQClientFactory;
     }
 
+    /**
+     * 尝试压缩消息，默认大于4k的消息需要压缩
+     *
+     * @param msg
+     * @return
+     */
     private boolean tryToCompressMessage(final Message msg) {
+        // 批量消息目前不支持压缩
         if (msg instanceof MessageBatch) {
             //batch dose not support compressing right now
             return false;
