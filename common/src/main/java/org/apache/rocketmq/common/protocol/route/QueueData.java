@@ -20,6 +20,10 @@
  */
 package org.apache.rocketmq.common.protocol.route;
 
+/**
+ * @see //org.apache.rocketmq.namesrv.routeinfo.RouteInfoManager
+ * 一个 Topic 拥有多个消息队 ，一个Broker为每一个主题默认创建4个读队列4个写队列
+ */
 public class QueueData implements Comparable<QueueData> {
     private String brokerName;
     private int readQueueNums;
