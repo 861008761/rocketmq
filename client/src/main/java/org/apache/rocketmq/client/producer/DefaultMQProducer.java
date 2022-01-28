@@ -50,7 +50,6 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
  * <p>功能三：它实现MQAdmin 接口里面关于topic与MessageQueue的操作。</p>
  */
 public class DefaultMQProducer extends ClientConfig implements MQProducer {
-
     /**
      * Wrapping internal implementations for virtually all methods presented in this class.
      */
