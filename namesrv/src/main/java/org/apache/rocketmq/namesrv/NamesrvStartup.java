@@ -56,7 +56,9 @@ public class NamesrvStartup {
     public static NamesrvController main0(String[] args) {
 
         try {
+            // 创建NamesrvController对象
             NamesrvController controller = createNamesrvController(args);
+            // 初始化controller，启动controller
             start(controller);
             String tip = "The Name Server boot success. serializeType=" + RemotingCommand.getSerializeTypeConfigInThisServer();
             log.info(tip);
@@ -171,6 +173,7 @@ public class NamesrvStartup {
             System.exit(-3);
         }
 
+        // 关闭钩子函数，当java进程关闭前执行该call方法，防止rocketmq异常退出
         Runtime.getRuntime().addShutdownHook(new ShutdownHookThread(log, new Callable<Void>() {
             @Override
             public Void call() throws Exception {

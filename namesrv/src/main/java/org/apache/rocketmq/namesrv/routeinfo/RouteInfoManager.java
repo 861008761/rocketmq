@@ -78,6 +78,9 @@ public class RouteInfoManager {
      */
     private final HashMap<String/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
 
+    /**
+     * 路由信息管理器初始化方法
+     */
     public RouteInfoManager() {
         this.topicQueueTable = new HashMap<String, List<QueueData>>(1024);
         this.brokerAddrTable = new HashMap<String, BrokerData>(128);
@@ -468,6 +471,12 @@ public class RouteInfoManager {
         }
     }
 
+    /**
+     * 关闭channel连接之后，再次确认channel已关闭，维护namesrv元数据表
+     *
+     * @param remoteAddr
+     * @param channel
+     */
     public void onChannelDestroy(String remoteAddr, Channel channel) {
         String brokerAddrFound = null;
         if (channel != null) {
@@ -537,8 +546,8 @@ public class RouteInfoManager {
                     }
 
                     /**
-                     * 根据 BrokerName ，从 clusterAddrTable 中找到 Broker 并从集群中移除。如果移
-                     * 除后，集群中不包含任何 Broker ，则将该集群从 clusterAddrTable 中移除。
+                     * 根据 BrokerName ，从 clusterAddrTable 中找到 Broker 并从集群中移除。
+                     * 如果移除后，集群中不包含任何 Broker ，则将该集群从 clusterAddrTable 中移除。
                      */
                     if (brokerNameFound != null && removeBrokerName) {
                         Iterator<Entry<String, Set<String>>> it = this.clusterAddrTable.entrySet().iterator();
@@ -562,8 +571,10 @@ public class RouteInfoManager {
                         }
                     }
 
-                    // 根据 brokerName ，遍历所有主题的队列，如果队列中包含了当前 Broker 的队列，则移除
-                    // 如果 topic 对应的所有队列都被删除的话，从路由表中删除该 topic
+                    /**
+                     * 根据 brokerName ，遍历所有主题的队列，如果队列中包含了当前 Broker 的队列，则移除；
+                     * 如果 topic 对应的所有队列都被删除的话，从路由表中删除该 topic
+                     */
                     if (removeBrokerName) {
                         Iterator<Entry<String, List<QueueData>>> itTopicQueueTable =
                                 this.topicQueueTable.entrySet().iterator();
