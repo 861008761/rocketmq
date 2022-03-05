@@ -102,7 +102,7 @@ public class ConsumeQueue {
             while (true) {
                 for (int i = 0; i < mappedFileSizeLogics; i += CQ_STORE_UNIT_SIZE) {
                     long offset = byteBuffer.getLong();
-                    int size = byteBuffer.getInt();
+                    int size = byteBuffer.getInt(); // 指在commitlog中，此消息占用size字节长度
                     long tagsCode = byteBuffer.getLong();
 
                     if (offset >= 0 && size > 0) {

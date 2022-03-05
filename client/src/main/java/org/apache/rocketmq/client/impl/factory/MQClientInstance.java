@@ -265,11 +265,11 @@ public class MQClientInstance {
                     // Start various schedule tasks
                     this.startScheduledTask(); // 开启任务调度
                     // Start pull service
-                    this.pullMessageService.start();
+                    this.pullMessageService.start(); // 消费者使用的线程
                     // Start rebalance service
-                    this.rebalanceService.start();
+                    this.rebalanceService.start(); // 消费者使用的线程
                     // Start push service
-                    this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
+                    this.defaultMQProducer.getDefaultMQProducerImpl().start(false); // 消费者使用的线程
                     log.info("the client factory [{}] start OK", this.clientId);
                     this.serviceState = ServiceState.RUNNING;
                     break;
@@ -291,7 +291,7 @@ public class MQClientInstance {
      */
     private void startScheduledTask() {
         // 获取namesrv 两分钟执行一次
-        if (null == this.clientConfig.getNamesrvAddr()) { // 如果没有namesrv
+        if (null == this.clientConfig.getNamesrvAddr()) { // 如果没有配置namesrv服务器地址
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
                 @Override
@@ -305,7 +305,7 @@ public class MQClientInstance {
             }, 1000 * 10, 1000 * 60 * 2, TimeUnit.MILLISECONDS);
         }
 
-        // 从nameserv获取topic信息的任务，默认是30s拉取一次
+        // 重要：从namesrv获取topic信息的任务，默认是30s拉取一次
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override

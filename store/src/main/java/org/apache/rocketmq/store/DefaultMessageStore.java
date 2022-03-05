@@ -541,10 +541,10 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     /**
-     * 在commitlog写入消息前会获取一个锁来保证顺序写入，获取到锁就会更新下这个获取锁的时间，
-     * 最后写入完成会释放锁，将这个时间设置成0 ，如果按照正常情况的话，如果你现在这个时间戳减去0的话绝对会大于这个10000000的，
-     * 也就是不满足，然后当前时间减去那个上次获取锁的时间，如果现在与获取锁时间差大于1s的话就说明某个追加写入已经持有锁超过1s了，
-     * 所以它会认为os page cache繁忙
+     * 在commitlog写入消息前会获取一个锁来保证顺序写入，获取到锁就会更新下这个获取锁的时间，最后写入完成会释放锁，将这个时间设置成0，
+     * 如果按照正常情况的话，如果你现在这个时间戳减去0的话绝对会大于这个10000000的，也就是PageCache不繁忙，
+     * 然后当前时间减去那个上次获取锁的时间，
+     * 如果现在与获取锁时间差大于1s的话就说明某个追加写入已经持有锁超过1s了，所以它会认为os page cache繁忙
      *
      * @return
      */
@@ -1939,11 +1939,13 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         private void doReput() {
+            // 首先，检查转发开始偏移量 是否 比commitlog最小偏移量小，小的话置为commitlog最小偏移量才可以
             if (this.reputFromOffset < DefaultMessageStore.this.commitLog.getMinOffset()) {
                 log.warn("The reputFromOffset={} is smaller than minPyOffset={}, this usually indicate that the dispatch behind too much and the commitlog has expired.",
                         this.reputFromOffset, DefaultMessageStore.this.commitLog.getMinOffset());
                 this.reputFromOffset = DefaultMessageStore.this.commitLog.getMinOffset();
             }
+            // 等价于commitlog中产生新的消息
             for (boolean doNext = true; this.isCommitLogAvailable() && doNext; ) {
 
                 if (DefaultMessageStore.this.getMessageStoreConfig().isDuplicationEnable()
@@ -1951,11 +1953,13 @@ public class DefaultMessageStore implements MessageStore {
                     break;
                 }
 
-                SelectMappedBufferResult result = DefaultMessageStore.this.commitLog.getData(reputFromOffset);
+                // 读取reputFromOffset偏移量到commitlog的最后偏移量之间的数据
+                    SelectMappedBufferResult result = DefaultMessageStore.this.commitLog.getData(reputFromOffset);
                 if (result != null) {
                     try {
                         this.reputFromOffset = result.getStartOffset();
 
+                        // 待读取的文件总大小
                         for (int readSize = 0; readSize < result.getSize() && doNext; ) {
                             DispatchRequest dispatchRequest =
                                     DefaultMessageStore.this.commitLog.checkMessageAndReturnSize(result.getByteBuffer(), false, false);

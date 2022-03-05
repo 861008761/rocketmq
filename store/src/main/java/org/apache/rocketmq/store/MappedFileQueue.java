@@ -456,6 +456,7 @@ public class MappedFileQueue {
     }
 
     /**
+     * 根据消息偏移量计算该偏移量在哪个mappedFile文件中
      * Finds a mapped file by offset.
      *
      * @param offset Offset.
