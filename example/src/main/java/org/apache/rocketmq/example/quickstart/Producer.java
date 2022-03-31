@@ -39,7 +39,7 @@ public class Producer {
          * 当然你可以把发送短信验证码分的更细些，有发送注册验证码，有发送登录验证码，这个要看你特殊需求没。
          *
          * 这个topic可以是用RocktMQ的可视化管理平台创建，修改，也可以在消息生产者使用api创建，
-         * 也可以不用管，发送消息的时候直接指定就行，默认就会创建了。
+         * 也可以不用管，发送消息的时候直接指定就行，默认就会创建了【需要开启自动创建topic的配置】。
          */
         DefaultMQProducer producer = new DefaultMQProducer("please_rename_unique_group_name");
 
@@ -53,7 +53,7 @@ public class Producer {
          */
         producer.start();
 
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < 1; i++) {
             try {
 
                 /*

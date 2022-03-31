@@ -54,6 +54,9 @@ public class BrokerStartup {
     public static String configFile = null;
     public static InternalLogger log;
 
+    /**
+     * createBrokerController方法：解析+初始化
+     */
     public static void main(String[] args) {
         start(createBrokerController(args));
     }
@@ -87,6 +90,23 @@ public class BrokerStartup {
         }
     }
 
+    /**
+     * 1、解析命令行参数
+     * 2、创建BrokerController对象
+     *      构造函数主要作用：为一系列配置文件、队列、监听器、service和manager对象赋值
+     * 3、调用BrokerController对象的initialize方法
+     *      加载
+     *      C:\Users\hpc\store\config\topics.json
+     *      C:\Users\hpc\store\config\consumerOffset.json
+     *      C:\Users\hpc\store\config\subscriptionGroup.json
+     *      C:\Users\hpc\store\config\consumerFilter.json
+     *      四个json格式的文件
+     *
+     *      如果加载成功，创建messageStore对象。这个对象是broker的核心！！！存储数据、维护队列和索引都以这个类为入口
+     *
+     * @param args
+     * @return
+     */
     public static BrokerController createBrokerController(String[] args) {
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
 
