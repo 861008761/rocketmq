@@ -30,7 +30,7 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
 /**
- * MappedFileQueue是对C:\Users\hpc\store\commitlog下mappedFile列表的抽象
+ * MappedFileQueue是对C:\Users\hpc\store\commitlog下、C:\Users\hpc\store\consumequeue\TopicTest\0下的mappedFile列表的抽象
  */
 public class MappedFileQueue {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);

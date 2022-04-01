@@ -27,16 +27,35 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.MappedFile;
 
+/**
+ * 是对C:\Users\hpc\store\index文件夹中各个文件的抽象表示
+ * 索引文件由索引文件头IndexHeader, 槽位Slot和消息的索引内容三部分构成
+ */
 public class IndexFile {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
+    /**
+     * 每个hash槽占用的空间
+     */
     private static int hashSlotSize = 4;
+    /**
+     * 每个索引占用的空间
+     */
     private static int indexSize = 20;
     private static int invalidIndex = 0;
+    /**
+     * hash槽数量，系统默认为500万个
+     */
     private final int hashSlotNum;
+    /**
+     * 索引数量，系统默认为2000万个（500万*4）
+     */
     private final int indexNum;
     private final MappedFile mappedFile;
     private final FileChannel fileChannel;
     private final MappedByteBuffer mappedByteBuffer;
+    /**
+     * 索引文件头
+     */
     private final IndexHeader indexHeader;
 
     public IndexFile(final String fileName, final int hashSlotNum, final int indexNum,

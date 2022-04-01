@@ -89,6 +89,7 @@ public class ConsumeQueue {
         final List<MappedFile> mappedFiles = this.mappedFileQueue.getMappedFiles();
         if (!mappedFiles.isEmpty()) {
 
+            // 默认重建最后三个mappedFile（如果存在3个），否则就重建一个
             int index = mappedFiles.size() - 3;
             if (index < 0)
                 index = 0;

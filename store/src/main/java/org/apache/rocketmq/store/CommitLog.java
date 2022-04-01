@@ -219,6 +219,8 @@ public class CommitLog {
             this.mappedFileQueue.setCommittedWhere(processOffset);
             this.mappedFileQueue.truncateDirtyFiles(processOffset);
 
+            // 理解：正常而言，消费队列ConsumeQueue偏移量应该是滞后于commitlog的。
+            // 因此如果有超出的情况，说明消费队列有问题，需要修正消费队列偏移量
             // Clear ConsumeQueue redundant data
             if (maxPhyOffsetOfConsumeQueue >= processOffset) {
                 log.warn("maxPhyOffsetOfConsumeQueue({}) >= processOffset({}), truncate dirty logic files", maxPhyOffsetOfConsumeQueue, processOffset);

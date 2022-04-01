@@ -186,6 +186,7 @@ public class DefaultMessageStore implements MessageStore {
         boolean result = true;
 
         try {
+            // 如果程序之前异常退出，会在C:\Users\hpc\store\文件夹下生成abort文件，此处做检查
             boolean lastExitOK = !this.isTempFileExist();
             log.info("last shutdown {}", lastExitOK ? "normally" : "abnormally");
 
@@ -199,15 +200,18 @@ public class DefaultMessageStore implements MessageStore {
             result = result && this.commitLog.load();
 
             // load Consume Queue
-            // 加载消费队列
+            // 解析C:\Users\hpc\store\consumequeue下的文件，加载消费队列
             result = result && this.loadConsumeQueue();
 
             if (result) {
                 this.storeCheckpoint =
                         new StoreCheckpoint(StorePathConfigHelper.getStoreCheckpoint(this.messageStoreConfig.getStorePathRootDir()));
 
+                // 解析C:\Users\hpc\store\index下的文件，加载索引
                 this.indexService.load(lastExitOK);
 
+                // 重建broker组件状态
+                // 由于是本地文件存储，需要在启动的时候，重建各个组件的状态
                 this.recover(lastExitOK);
 
                 log.info("load over, and the max phy offset = {}", this.getMaxPhyOffset());
@@ -1436,13 +1440,14 @@ public class DefaultMessageStore implements MessageStore {
                         } catch (NumberFormatException e) {
                             continue;
                         }
-                        // 解析物理文件，生成其对应抽象对象ConsumeQueue
+                        // 解析物理文件，生成其对应抽象对象ConsumeQueue，到队列id这一级
                         ConsumeQueue logic = new ConsumeQueue(
                                 topic,
                                 queueId,
                                 StorePathConfigHelper.getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir()),
                                 this.getMessageStoreConfig().getMappedFileSizeConsumeQueue(),
                                 this);
+                        // 把队列放入map缓存中
                         this.putConsumeQueue(topic, queueId, logic);
                         if (!logic.load()) {
                             return false;

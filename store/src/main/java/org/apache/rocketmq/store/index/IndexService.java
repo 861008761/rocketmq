@@ -54,17 +54,27 @@ public class IndexService {
             StorePathConfigHelper.getStorePathIndex(store.getMessageStoreConfig().getStorePathRootDir());
     }
 
+    /**
+     * 解析C:\Users\hpc\store\index文件夹
+     * @param lastExitOK
+     * @return
+     */
     public boolean load(final boolean lastExitOK) {
         File dir = new File(this.storePath);
         File[] files = dir.listFiles();
         if (files != null) {
             // ascending order
             Arrays.sort(files);
+            // 读取index文件夹下各个文件
             for (File file : files) {
                 try {
+                    // IndexFile是对index文件夹下的文件的抽象表示
                     IndexFile f = new IndexFile(file.getPath(), this.hashSlotNum, this.indexNum, 0, 0);
+                    // 调用indexFile的load方法，主要对索引文件头进行加载
                     f.load();
 
+                    // 如果程序之前异常退出，且索引文件最后写入时间比检查点文件记录的最新生成的索引消息时间更晚，
+                    // 丢弃该文件
                     if (!lastExitOK) {
                         if (f.getEndTimestamp() > this.defaultMessageStore.getStoreCheckpoint()
                             .getIndexMsgTimestamp()) {
