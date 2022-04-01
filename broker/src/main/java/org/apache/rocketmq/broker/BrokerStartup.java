@@ -119,7 +119,17 @@ public class BrokerStartup {
      *      启动一系列定时任务
      *
      * 4、调用BrokerController对象的start方法
-     *      TODO 启动一系列任务
+     *    ★（1）this.messageStore.start(); 启动其中的reputMessageService服务，很重要
+     *    ★（2）this.remotingServer.start();启动broker的netty服务端，用来接收生产者和消费者请求
+     *      （3）this.fastRemotingServer.start();启动vip消息服务端
+     *      （4）this.fileWatchService.start();
+     *    ★（5）this.brokerOuterAPI.start();启动broker客户端，用来向namesrv注册和发送心跳
+     *      （6）this.pullRequestHoldService.start();启动“拉取请求等待线程”？
+     *      （7）this.clientHousekeepingService.start();启动检查客户端channel连接正常
+     *      （8）this.filterServerManager.start();启动定时执行脚本任务
+     *    ★（9）BrokerController.this.registerBrokerAll(true, false, brokerConfig.isForceRegister());向各个namesrv注册broker
+     *      （10）this.brokerStatsManager.start();
+     *      （11）this.brokerFastFailure.start();
      * @param args
      * @return
      */
