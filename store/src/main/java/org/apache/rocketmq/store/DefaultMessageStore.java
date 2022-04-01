@@ -65,7 +65,7 @@ import org.apache.rocketmq.store.schedule.ScheduleMessageService;
 import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
 /**
- * 消息存储实现类
+ * 消息存储实现类，DefaultMessageStore是文对C:\Users\hpc\store文件夹的抽象
  */
 public class DefaultMessageStore implements MessageStore {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
@@ -189,14 +189,17 @@ public class DefaultMessageStore implements MessageStore {
             boolean lastExitOK = !this.isTempFileExist();
             log.info("last shutdown {}", lastExitOK ? "normally" : "abnormally");
 
+            // 加载延时消息，稍后在start方法中启动
             if (null != scheduleMessageService) {
                 result = result && this.scheduleMessageService.load();
             }
 
             // load Commit Log
+            // 加载commitlog文件夹，稍后在start方法中启动
             result = result && this.commitLog.load();
 
             // load Consume Queue
+            // 加载消费队列
             result = result && this.loadConsumeQueue();
 
             if (result) {
@@ -1394,16 +1397,38 @@ public class DefaultMessageStore implements MessageStore {
         return file.exists();
     }
 
+    /**
+     * 消费队列对应的物理文件形式为：C:\Users\hpc\store\consumequeue
+     * ─consumequeue
+     * │  └─TopicTest
+     * │      ├─0
+     * │      │      00000000000000000000
+     * │      │
+     * │      ├─1
+     * │      │      00000000000000000000
+     * │      │
+     * │      ├─2
+     * │      │      00000000000000000000
+     * │      │
+     * │      └─3
+     * │              00000000000000000000
+     * @return
+     */
     private boolean loadConsumeQueue() {
+        // 对应C:\Users\hpc\store\consumequeue
         File dirLogic = new File(StorePathConfigHelper.getStorePathConsumeQueue(this.messageStoreConfig.getStorePathRootDir()));
+        // 对应C:\Users\hpc\store\consumequeue\TopicTest、C:\Users\hpc\store\consumequeue\TopicTest2列表
         File[] fileTopicList = dirLogic.listFiles();
         if (fileTopicList != null) {
 
+            // fileTopic对应C:\Users\hpc\store\consumequeue\TopicTest
             for (File fileTopic : fileTopicList) {
                 String topic = fileTopic.getName();
 
+                // fileQueueIdList对应C:\Users\hpc\store\consumequeue\TopicTest\0、C:\Users\hpc\store\consumequeue\TopicTest\1等列表
                 File[] fileQueueIdList = fileTopic.listFiles();
                 if (fileQueueIdList != null) {
+                    // fileQueueId对应0、1、2、3，即每一个队列ID
                     for (File fileQueueId : fileQueueIdList) {
                         int queueId;
                         try {
@@ -1411,6 +1436,7 @@ public class DefaultMessageStore implements MessageStore {
                         } catch (NumberFormatException e) {
                             continue;
                         }
+                        // 解析物理文件，生成其对应抽象对象ConsumeQueue
                         ConsumeQueue logic = new ConsumeQueue(
                                 topic,
                                 queueId,

@@ -46,6 +46,7 @@ import org.apache.rocketmq.store.ha.HAService;
 import org.apache.rocketmq.store.schedule.ScheduleMessageService;
 
 /**
+ * CommitLog是对 C:\Users\hpc\store\commitlog 文件夹的抽象
  * Store all metadata downtime for recovery, data protection reliability
  */
 public class CommitLog {
@@ -94,6 +95,10 @@ public class CommitLog {
 
     }
 
+    /**
+     * 其实是对commitlog文件夹下的mappedFile列表（mappedFileQueue）进行加载
+     * @return
+     */
     public boolean load() {
         boolean result = this.mappedFileQueue.load();
         log.info("load commit log " + (result ? "OK" : "Failed"));

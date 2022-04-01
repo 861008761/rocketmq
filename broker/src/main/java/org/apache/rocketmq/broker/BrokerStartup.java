@@ -102,7 +102,16 @@ public class BrokerStartup {
      *      C:\Users\hpc\store\config\consumerFilter.json
      *      四个json格式的文件
      *
-     *      如果加载成功，创建messageStore对象。这个对象是broker的核心！！！存储数据、维护队列和索引都以这个类为入口
+     *      如果前面的配置文件加载成功，创建messageStore对象。这个对象是broker的核心！！！
+     *      是文件夹：C:\Users\hpc\store的抽象表示
+     *      存储数据commitlog、维护队列consumequeue和索引index都以这个类为入口
+     *          创建一系列service
+     *          创建commitLog对象
+     *              创建MappedFileQueue对象
+     *          创建并写入请求分发dispatcherList
+     *
+     *      调用messageStore的load()方法
+     *
      *
      * @param args
      * @return

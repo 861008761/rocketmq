@@ -33,6 +33,13 @@ import org.apache.rocketmq.store.config.BrokerRole;
 
 /**
  * 用于提前创建映射文件
+ * 两个核心方法：
+ * <p>
+ * putRequestAndReturnMappedFile：每次调用getLastMappedFile方法时，都会尝试创建之后的mappingFile
+ * </p>
+ * <p>
+ * mmapOperation：该线程启动之后，轮询创建mappedFile请求队列，创建并预热mappedFile。
+ * </p>
  * Create MappedFile in advance
  */
 public class AllocateMappedFileService extends ServiceThread {
@@ -49,6 +56,13 @@ public class AllocateMappedFileService extends ServiceThread {
         this.messageStore = messageStore;
     }
 
+    /**
+     * 调用时机：在调用getLastMappedFile时，调用该方法提前创建下一个文件。
+     * @param nextFilePath
+     * @param nextNextFilePath
+     * @param fileSize
+     * @return
+     */
     public MappedFile putRequestAndReturnMappedFile(String nextFilePath, String nextNextFilePath, int fileSize) {
         int canSubmitRequests = 2;
         if (this.messageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
@@ -58,9 +72,11 @@ public class AllocateMappedFileService extends ServiceThread {
             }
         }
 
+        // 1、创建分配下一个mappingFile请求并放到请求表中
         AllocateRequest nextReq = new AllocateRequest(nextFilePath, fileSize);
         boolean nextPutOK = this.requestTable.putIfAbsent(nextFilePath, nextReq) == null;
 
+        // 2、该文件只需要创建一次，做去重判断，第一次创建的话把请求放到队列中
         if (nextPutOK) {
             if (canSubmitRequests <= 0) {
                 log.warn("[NOTIFYME]TransientStorePool is not enough, so create mapped file error, " +
@@ -75,8 +91,10 @@ public class AllocateMappedFileService extends ServiceThread {
             canSubmitRequests--;
         }
 
+        // 3、创建分配下下一个mappingFile请求并放到请求表中
         AllocateRequest nextNextReq = new AllocateRequest(nextNextFilePath, fileSize);
         boolean nextNextPutOK = this.requestTable.putIfAbsent(nextNextFilePath, nextNextReq) == null;
+        // 4、该文件只需要创建一次，做去重判断，第一次创建的话把请求放到队列中
         if (nextNextPutOK) {
             if (canSubmitRequests <= 0) {
                 log.warn("[NOTIFYME]TransientStorePool is not enough, so skip preallocate mapped file, " +
@@ -95,9 +113,11 @@ public class AllocateMappedFileService extends ServiceThread {
             return null;
         }
 
+        // 5、取下一个mappingFile文件请求，等待5秒，如果成功则把生成的mappingFile对象返回
         AllocateRequest result = this.requestTable.get(nextFilePath);
         try {
             if (result != null) {
+                // 创建过程等待5秒
                 boolean waitOK = result.getCountDownLatch().await(waitTimeOut, TimeUnit.MILLISECONDS);
                 if (!waitOK) {
                     log.warn("create mmap timeout " + result.getFilePath() + " " + result.getFileSize());
@@ -142,6 +162,11 @@ public class AllocateMappedFileService extends ServiceThread {
     }
 
     /**
+     * requestQueue队列在putRequestAndReturnMappedFile方法中写入；
+     * 此方法在run方法中无限循环执行：
+     *      从“创建mappingFile请求”队列中取请求；
+     *      创建MappedFile对象；
+     *      预热该文件对象
      * Only interrupted by the external thread, will return false
      */
     private boolean mmapOperation() {

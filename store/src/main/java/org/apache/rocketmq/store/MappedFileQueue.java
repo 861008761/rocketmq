@@ -30,7 +30,7 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
 /**
- * MappedFileQueue 可以 是$｛ROCKET_HOME }/store/commitlog 文件夹
+ * MappedFileQueue是对C:\Users\hpc\store\commitlog下mappedFile列表的抽象
  */
 public class MappedFileQueue {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
@@ -147,6 +147,11 @@ public class MappedFileQueue {
         }
     }
 
+    /**
+     * 加载形如 00000000000000000000、00000000001073741824 的mappedFile文件列表
+     * 根据每个物理文件，创建对应MappedFile对象，并设置其position参数
+     * @return
+     */
     public boolean load() {
         File dir = new File(this.storePath);
         File[] files = dir.listFiles();
