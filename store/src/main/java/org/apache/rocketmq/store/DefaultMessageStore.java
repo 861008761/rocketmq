@@ -1463,6 +1463,8 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     private void recover(final boolean lastExitOK) {
+        // 全部的消费队列对应着一个（或者多个）coomitlog，
+        // 最大的偏移量maxPhyOffsetOfConsumeQueue就是上次关闭时最后写入消费队列文件的偏移量
         long maxPhyOffsetOfConsumeQueue = this.recoverConsumeQueue();
 
         if (lastExitOK) {
@@ -1495,7 +1497,9 @@ public class DefaultMessageStore implements MessageStore {
 
     private long recoverConsumeQueue() {
         long maxPhysicOffset = -1;
+        // maps对应各个<queueId, ConsumeQueue>
         for (ConcurrentMap<Integer, ConsumeQueue> maps : this.consumeQueueTable.values()) {
+            // logic对应各个topic的每一个queueId的消息队列，里面有一个或者多个消息队列文件
             for (ConsumeQueue logic : maps.values()) {
                 logic.recover();
                 if (logic.getMaxPhysicOffset() > maxPhysicOffset) {

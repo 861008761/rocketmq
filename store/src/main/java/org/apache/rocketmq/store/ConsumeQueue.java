@@ -25,6 +25,12 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.config.BrokerRole;
 import org.apache.rocketmq.store.config.StorePathConfigHelper;
 
+/**
+ * $HOME/store/consumequeue/{topic}/{queueId}/{fileName}。
+ * 同样consumequeue文件采取定长设计，每一个条目共20个字节，
+ * 分别为8字节的commitlog物理偏移量、4字节的消息长度、8字节tag hashcode，
+ * 单个文件由30W个条目组成，可以像数组一样随机访问每一个条目，每个ConsumeQueue文件大小约5.72M；
+ */
 public class ConsumeQueue {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
 
@@ -39,6 +45,9 @@ public class ConsumeQueue {
     private final ByteBuffer byteBufferIndex;
 
     private final String storePath;
+    /**
+     * 文件大小为30万 * 20，约5.72M
+     */
     private final int mappedFileSize;
     private long maxPhysicOffset = -1;
     private volatile long minLogicOffset = 0;
@@ -102,6 +111,7 @@ public class ConsumeQueue {
             long maxExtAddr = 1;
             while (true) {
                 for (int i = 0; i < mappedFileSizeLogics; i += CQ_STORE_UNIT_SIZE) {
+                    // consumeQueue文件条目存储，分别为8字节的commitlog物理偏移量、4字节的消息长度、8字节tag hashcode
                     long offset = byteBuffer.getLong();
                     int size = byteBuffer.getInt(); // 指在commitlog中，此消息占用size字节长度
                     long tagsCode = byteBuffer.getLong();
@@ -119,6 +129,7 @@ public class ConsumeQueue {
                     }
                 }
 
+                // 一个文件遍历完了，重置变量，取下一个consumequeue文件处理
                 if (mappedFileOffset == mappedFileSizeLogics) {
                     index++;
                     if (index >= mappedFiles.size()) {
@@ -138,8 +149,9 @@ public class ConsumeQueue {
                         + (processOffset + mappedFileOffset));
                     break;
                 }
-            }
+            } // while (true)
 
+            // 遍历完某个queueId中所有物理文件，得到最大偏移量，记录到mappedFileQueue中
             processOffset += mappedFileOffset;
             this.mappedFileQueue.setFlushedWhere(processOffset);
             this.mappedFileQueue.setCommittedWhere(processOffset);

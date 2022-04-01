@@ -184,6 +184,7 @@ public class CommitLog {
             long processOffset = mappedFile.getFileFromOffset();
             long mappedFileOffset = 0;
             while (true) {
+                // 取消息各个字段，解析消息并构建DispatchRequest对象，返回消息size
                 DispatchRequest dispatchRequest = this.checkMessageAndReturnSize(byteBuffer, checkCRCOnRecover);
                 int size = dispatchRequest.getMsgSize();
                 // Normal data
@@ -212,8 +213,10 @@ public class CommitLog {
                     log.info("recover physics file end, " + mappedFile.getFileName());
                     break;
                 }
-            }
+            } // while(true)
 
+            // 前面while中会遍历commitlog文件夹中所有大小为1G的文件，
+            // 得到上次停止时最后写入的偏移量，也是commitlog最大偏移量
             processOffset += mappedFileOffset;
             this.mappedFileQueue.setFlushedWhere(processOffset);
             this.mappedFileQueue.setCommittedWhere(processOffset);

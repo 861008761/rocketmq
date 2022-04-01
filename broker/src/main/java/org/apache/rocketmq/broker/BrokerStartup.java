@@ -111,8 +111,15 @@ public class BrokerStartup {
      *          创建并写入请求分发dispatcherList
      *
      *      调用messageStore的load()方法
+     *          调用store下的各个组件的load方法，重建各个组件
+     *          恢复组件内消息偏移量，并修正错误偏移量
      *
+     *      前面的成功之后，创建一系列线程池executor
+     *      注册processor处理器，处理请求时使用前一步创建的executor
+     *      启动一系列定时任务
      *
+     * 4、调用BrokerController对象的start方法
+     *      TODO 启动一系列任务
      * @param args
      * @return
      */
