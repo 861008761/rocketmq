@@ -52,6 +52,13 @@ public class ReplyMessageProcessor extends AbstractSendMessageProcessor implemen
         super(brokerController);
     }
 
+    /**
+     * 接收消息生产者发来的消息
+     * @param ctx
+     * @param request
+     * @return
+     * @throws RemotingCommandException
+     */
     @Override
     public RemotingCommand processRequest(ChannelHandlerContext ctx,
         RemotingCommand request) throws RemotingCommandException {
@@ -64,6 +71,7 @@ public class ReplyMessageProcessor extends AbstractSendMessageProcessor implemen
         mqtraceContext = buildMsgContext(ctx, requestHeader);
         this.executeSendMessageHookBefore(ctx, request, mqtraceContext);
 
+        // 进一步处理
         RemotingCommand response = this.processReplyMessageRequest(ctx, request, mqtraceContext, requestHeader);
 
         this.executeSendMessageHookAfter(response, mqtraceContext);
@@ -144,6 +152,7 @@ public class ReplyMessageProcessor extends AbstractSendMessageProcessor implemen
         this.handlePushReplyResult(pushReplyResult, response, responseHeader, queueIdInt);
 
         if (this.brokerController.getBrokerConfig().isStoreReplyMessageEnable()) {
+            // 调用DefaultMessageStore，put消息
             PutMessageResult putMessageResult = this.brokerController.getMessageStore().putMessage(msgInner);
             this.handlePutMessageResult(putMessageResult, request, msgInner, responseHeader, sendMessageContext, queueIdInt);
         }
