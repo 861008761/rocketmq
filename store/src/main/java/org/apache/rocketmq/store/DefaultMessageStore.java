@@ -1576,6 +1576,14 @@ public class DefaultMessageStore implements MessageStore {
         return runningFlags;
     }
 
+    /**
+     * 作用：ReputMessageService服务读取commitlog消息，交给consumequue和index服务进行下一步处理
+     *
+     * DefaultMessageStore的构造方法中，初始化并设置该dispatcherList对象，
+     * 同时添加了两个dispatcher：CommitLogDispatcherBuildConsumeQueue和CommitLogDispatcherBuildIndex
+     * 在brokerController类initialize方法中，又新增了一个dispatcher：CommitLogDispatcherCalcBitMap
+     * @param req
+     */
     public void doDispatch(DispatchRequest req) {
         for (CommitLogDispatcher dispatcher : this.dispatcherList) {
             dispatcher.dispatch(req);
@@ -1957,6 +1965,9 @@ public class DefaultMessageStore implements MessageStore {
 
     class ReputMessageService extends ServiceThread {
 
+        /**
+         * 转发消息起始偏移量
+         */
         private volatile long reputFromOffset = 0;
 
         public long getReputFromOffset() {
@@ -1984,16 +1995,28 @@ public class DefaultMessageStore implements MessageStore {
             super.shutdown();
         }
 
+        /**
+         * 判断转发消息服务是否落后于commitlog最新偏移量
+         * @return
+         */
         public long behind() {
             return DefaultMessageStore.this.commitLog.getMaxOffset() - this.reputFromOffset;
         }
 
+        /**
+         * 这个和behind差不多，比较两者偏移量
+         * @return
+         */
         private boolean isCommitLogAvailable() {
             return this.reputFromOffset < DefaultMessageStore.this.commitLog.getMaxOffset();
         }
 
+        /**
+         * 转发消息核心方法
+         */
         private void doReput() {
             // 首先，检查转发开始偏移量 是否 比commitlog最小偏移量小，小的话置为commitlog最小偏移量才可以
+            // 太小了根本没法消费
             if (this.reputFromOffset < DefaultMessageStore.this.commitLog.getMinOffset()) {
                 log.warn("The reputFromOffset={} is smaller than minPyOffset={}, this usually indicate that the dispatch behind too much and the commitlog has expired.",
                         this.reputFromOffset, DefaultMessageStore.this.commitLog.getMinOffset());
@@ -2002,27 +2025,31 @@ public class DefaultMessageStore implements MessageStore {
             // 等价于commitlog中产生新的消息
             for (boolean doNext = true; this.isCommitLogAvailable() && doNext; ) {
 
+                // 1、再次比较，确认可以转发
                 if (DefaultMessageStore.this.getMessageStoreConfig().isDuplicationEnable()
                         && this.reputFromOffset >= DefaultMessageStore.this.getConfirmOffset()) {
                     break;
                 }
 
-                // 读取reputFromOffset偏移量到commitlog的最后偏移量之间的数据
-                    SelectMappedBufferResult result = DefaultMessageStore.this.commitLog.getData(reputFromOffset);
+                // 2、读取reputFromOffset偏移量到commitlog的最后偏移量之间的数据
+                SelectMappedBufferResult result = DefaultMessageStore.this.commitLog.getData(reputFromOffset);
                 if (result != null) {
                     try {
                         this.reputFromOffset = result.getStartOffset();
 
-                        // 待读取的文件总大小
+                        // 3、遍历结果集result
                         for (int readSize = 0; readSize < result.getSize() && doNext; ) {
+                            // 4、取一条消息，构造转发请求
                             DispatchRequest dispatchRequest =
                                     DefaultMessageStore.this.commitLog.checkMessageAndReturnSize(result.getByteBuffer(), false, false);
                             int size = dispatchRequest.getBufferSize() == -1 ? dispatchRequest.getMsgSize() : dispatchRequest.getBufferSize();
 
                             if (dispatchRequest.isSuccess()) {
                                 if (size > 0) {
+                                    // 5、转发消息
                                     DefaultMessageStore.this.doDispatch(dispatchRequest);
 
+                                    // 6、如果实现了消息达到监听器，则调用该监听器
                                     if (BrokerRole.SLAVE != DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole()
                                             && DefaultMessageStore.this.brokerConfig.isLongPollingEnable()
                                             && DefaultMessageStore.this.messageArrivingListener != null) {
@@ -2032,6 +2059,7 @@ public class DefaultMessageStore implements MessageStore {
                                                 dispatchRequest.getBitMap(), dispatchRequest.getPropertiesMap());
                                     }
 
+                                    // 7、消息转发后置处理逻辑
                                     this.reputFromOffset += size;
                                     readSize += size;
                                     if (DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole() == BrokerRole.SLAVE) {
