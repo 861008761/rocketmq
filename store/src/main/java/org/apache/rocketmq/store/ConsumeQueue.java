@@ -456,6 +456,14 @@ public class ConsumeQueue {
         this.defaultMessageStore.getRunningFlags().makeLogicsQueueError();
     }
 
+    /**
+     * 向指定consumequeue存放消息
+     * @param offset 消息在commitlog中指定位置
+     * @param size 消息长度
+     * @param tagsCode tags码
+     * @param cqOffset 当前consumequeue偏移量
+     * @return
+     */
     private boolean putMessagePositionInfo(final long offset, final int size, final long tagsCode,
         final long cqOffset) {
 
@@ -464,6 +472,7 @@ public class ConsumeQueue {
             return true;
         }
 
+        // 构建consumequeue条目
         this.byteBufferIndex.flip();
         this.byteBufferIndex.limit(CQ_STORE_UNIT_SIZE);
         this.byteBufferIndex.putLong(offset);
