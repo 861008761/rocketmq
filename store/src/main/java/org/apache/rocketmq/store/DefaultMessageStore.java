@@ -169,6 +169,11 @@ public class DefaultMessageStore implements MessageStore {
         lockFile = new RandomAccessFile(file, "rw");
     }
 
+    /**
+     * 恢复commitlog时，得到commitlog中最大偏移量
+     * 以commitlog最大偏移量，修正consumequeue队列的偏移量
+     * @param phyOffset 物理偏移量，即commitlog中最大偏移量，consumequeue中时logic
+     */
     public void truncateDirtyLogicFiles(long phyOffset) {
         ConcurrentMap<String, ConcurrentMap<Integer, ConsumeQueue>> tables = DefaultMessageStore.this.consumeQueueTable;
 
@@ -229,6 +234,15 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     /**
+     * 1、启动messageStore前，检查lock文件；
+     * 2、获取maxPhysicalPosInLogicQueue，保证本次MQ启动之后，从当前偏移量之后开始消费，尽量避免重复消费
+     * 3、启动reputMessageService服务，开始轮询转发生产者消息
+     * 4、启动高可用服务
+     * 5、启动延时任务服务
+     * 6、启动刷写消费队列服务
+     * 7、启动commitlog服务
+     * 8、启动状态统计服务
+     * 9、添加后置定时任务
      * @throws Exception
      */
     public void start() throws Exception {
@@ -248,6 +262,7 @@ public class DefaultMessageStore implements MessageStore {
              * 4. Make sure the fall-behind messages to be dispatched before starting the commitlog, especially when the broker role are automatically changed.
              */
             long maxPhysicalPosInLogicQueue = commitLog.getMinOffset();
+            // 每个consumequeue对象记录了最新消息的偏移量，遍历得到最大的偏移量
             for (ConcurrentMap<Integer, ConsumeQueue> maps : this.consumeQueueTable.values()) {
                 for (ConsumeQueue logic : maps.values()) {
                     if (logic.getMaxPhysicOffset() > maxPhysicalPosInLogicQueue) {
@@ -1511,6 +1526,10 @@ public class DefaultMessageStore implements MessageStore {
         return maxPhysicOffset;
     }
 
+    /**
+     * （1）构建一个key为topic-queueid，value为offset的map；
+     * （2）根据commitlog最小偏移量，修正consumequeue中逻辑偏移量minLogicOffset.
+     */
     public void recoverTopicQueueTable() {
         HashMap<String/* topic-queueid */, Long/* offset */> table = new HashMap<String, Long>(1024);
         long minPhyOffset = this.commitLog.getMinOffset();

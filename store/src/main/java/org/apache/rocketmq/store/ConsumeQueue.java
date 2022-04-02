@@ -49,7 +49,14 @@ public class ConsumeQueue {
      * 文件大小为30万 * 20，约5.72M
      */
     private final int mappedFileSize;
+    /**
+     * 记录了该consumequeue最新消息的commitlog物理偏移量。通过遍历所有consumequeue，可得到最大logic偏移量
+     */
     private long maxPhysicOffset = -1;
+    /**
+     * minLogicOffset是当前队列的一个逻辑偏移量
+     * https://juejin.cn/post/6844903937200357383
+     */
     private volatile long minLogicOffset = 0;
     private ConsumeQueueExt consumeQueueExt = null;
 
@@ -234,6 +241,10 @@ public class ConsumeQueue {
         return 0;
     }
 
+    /**
+     * consumequeue根据物理偏移量（commitlog文件最大偏移量）修正自己偏移量
+     * @param phyOffet commitlog物理偏移量
+     */
     public void truncateDirtyLogicFiles(long phyOffet) {
 
         int logicFileSize = this.mappedFileSize;
@@ -254,7 +265,9 @@ public class ConsumeQueue {
                     int size = byteBuffer.getInt();
                     long tagsCode = byteBuffer.getLong();
 
+                    // 快速判断，如果第一个偏移量都大的话，不用比较了
                     if (0 == i) {
+                        // 如果消费队列偏移量大于commitlog最大偏移量，说明文件不正确，直接删除
                         if (offset >= phyOffet) {
                             this.mappedFileQueue.deleteLastMappedFile();
                             break;
@@ -272,7 +285,7 @@ public class ConsumeQueue {
                     } else {
 
                         if (offset >= 0 && size > 0) {
-
+                            // consumequeue最大的偏移量和commitlog最大偏移量相同
                             if (offset >= phyOffet) {
                                 return;
                             }
@@ -285,11 +298,12 @@ public class ConsumeQueue {
                             if (isExtAddr(tagsCode)) {
                                 maxExtAddr = tagsCode;
                             }
-
+                            // 某个消费队列到了自己存储的全部空间了
                             if (pos == logicFileSize) {
                                 return;
                             }
                         } else {
+                            // 可能size = 0;了，即下一个节点没有数据了，最后一条比commitlog小的情况
                             return;
                         }
                     }
@@ -349,6 +363,13 @@ public class ConsumeQueue {
         return cnt;
     }
 
+    /**
+     * 计算consumequeue的minLogicOffset变量
+     * 这边是为了修正minLogicOffset，使它必须是一个有效的偏移量。比如00000000000000000000的commitlog被删除，
+     * 如果这时候minLogicOffset的commitlog offset还是指向被删除的commitlog offset，
+     * 那消费就会有问题，这里保证了索引文件中的最小偏移量，指向的commitlog offset肯定是有效的。
+     * @param phyMinOffset commitlog的物理最小偏移量，consumequeue中偏移量需要和其做比较，否则计算出来的minLogicOffset没有意义
+     */
     public void correctMinOffset(long phyMinOffset) {
         MappedFile mappedFile = this.mappedFileQueue.getFirstMappedFile();
         long minExtAddr = 1;

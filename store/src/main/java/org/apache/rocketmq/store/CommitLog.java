@@ -208,7 +208,7 @@ public class CommitLog {
                         log.info("recover next physics file, " + mappedFile.getFileName());
                     }
                 }
-                // Intermediate file read error
+                // Intermediate file read error 中间文件读取报错
                 else if (!dispatchRequest.isSuccess()) {
                     log.info("recover physics file end, " + mappedFile.getFileName());
                     break;
@@ -1179,6 +1179,10 @@ public class CommitLog {
         return -1;
     }
 
+    /**
+     * 获取commitlog的第一个文件的最小偏移量（第一个文件的文件名）
+     * @return
+     */
     public long getMinOffset() {
         MappedFile mappedFile = this.mappedFileQueue.getFirstMappedFile();
         if (mappedFile != null) {

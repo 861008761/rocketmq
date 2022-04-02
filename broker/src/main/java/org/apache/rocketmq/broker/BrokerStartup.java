@@ -55,42 +55,6 @@ public class BrokerStartup {
     public static InternalLogger log;
 
     /**
-     * createBrokerController方法：解析+初始化
-     */
-    public static void main(String[] args) {
-        start(createBrokerController(args));
-    }
-
-    public static BrokerController start(BrokerController controller) {
-        try {
-
-            controller.start();
-
-            String tip = "The broker[" + controller.getBrokerConfig().getBrokerName() + ", "
-                + controller.getBrokerAddr() + "] boot success. serializeType=" + RemotingCommand.getSerializeTypeConfigInThisServer();
-
-            if (null != controller.getBrokerConfig().getNamesrvAddr()) {
-                tip += " and name server is " + controller.getBrokerConfig().getNamesrvAddr();
-            }
-
-            log.info(tip);
-            System.out.printf("%s%n", tip);
-            return controller;
-        } catch (Throwable e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-
-        return null;
-    }
-
-    public static void shutdown(final BrokerController controller) {
-        if (null != controller) {
-            controller.shutdown();
-        }
-    }
-
-    /**
      * 1、解析命令行参数
      * 2、创建BrokerController对象
      *      构造函数主要作用：为一系列配置文件、队列、监听器、service和manager对象赋值
@@ -133,6 +97,39 @@ public class BrokerStartup {
      * @param args
      * @return
      */
+    public static void main(String[] args) {
+        start(createBrokerController(args));
+    }
+
+    public static BrokerController start(BrokerController controller) {
+        try {
+
+            controller.start();
+
+            String tip = "The broker[" + controller.getBrokerConfig().getBrokerName() + ", "
+                + controller.getBrokerAddr() + "] boot success. serializeType=" + RemotingCommand.getSerializeTypeConfigInThisServer();
+
+            if (null != controller.getBrokerConfig().getNamesrvAddr()) {
+                tip += " and name server is " + controller.getBrokerConfig().getNamesrvAddr();
+            }
+
+            log.info(tip);
+            System.out.printf("%s%n", tip);
+            return controller;
+        } catch (Throwable e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+
+        return null;
+    }
+
+    public static void shutdown(final BrokerController controller) {
+        if (null != controller) {
+            controller.shutdown();
+        }
+    }
+
     public static BrokerController createBrokerController(String[] args) {
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
 
