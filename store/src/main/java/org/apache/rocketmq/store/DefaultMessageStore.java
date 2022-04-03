@@ -234,15 +234,15 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     /**
-     * 1、启动messageStore前，检查lock文件；
-     * 2、获取maxPhysicalPosInLogicQueue，保证本次MQ启动之后，从当前偏移量之后开始消费，尽量避免重复消费
-     * 3、启动reputMessageService服务，开始轮询转发生产者消息
-     * 4、启动高可用服务
-     * 5、启动延时任务服务
-     * 6、启动刷写消费队列服务
-     * 7、启动commitlog服务
-     * 8、启动状态统计服务
-     * 9、添加后置定时任务
+     * <P>1、启动messageStore前，检查lock文件；
+     * <P>2、获取maxPhysicalPosInLogicQueue，保证本次MQ启动之后，从当前偏移量之后开始消费，尽量避免重复消费
+     * <P>3、启动reputMessageService服务，开始轮询转发生产者消息
+     * <P>4、启动高可用服务 {@link org.apache.rocketmq.store.ha.HAService}
+     * <P>5、启动延时任务服务
+     * <P>6、启动刷写消费队列服务
+     * <P>7、启动commitlog服务
+     * <P>8、启动状态统计服务
+     * <P>9、添加后置定时任务
      * @throws Exception
      */
     public void start() throws Exception {
@@ -1645,6 +1645,9 @@ public class DefaultMessageStore implements MessageStore {
         }, 6, TimeUnit.SECONDS);
     }
 
+    /**
+     * commitlog数据转发构建consumequeue文件
+     */
     class CommitLogDispatcherBuildConsumeQueue implements CommitLogDispatcher {
 
         @Override
@@ -1662,6 +1665,9 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    /**
+     * commitlog数据转发构建index文件
+     */
     class CommitLogDispatcherBuildIndex implements CommitLogDispatcher {
 
         @Override
@@ -1895,6 +1901,9 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    /**
+     * flush消费队列服务
+     */
     class FlushConsumeQueueService extends ServiceThread {
         private static final int RETRY_TIMES_OVER = 3;
         private long lastFlushTimestamp = 0;
@@ -1964,6 +1973,9 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    /**
+     * 转发消息服务，从commitlog中取数据，向consumequeue和index中转发
+     */
     class ReputMessageService extends ServiceThread {
 
         /**
