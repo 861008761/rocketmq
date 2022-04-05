@@ -226,11 +226,13 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     public void start(final boolean startFactory) throws MQClientException {
         switch (this.serviceState) {
             case CREATE_JUST:
-                this.serviceState = ServiceState.START_FAILED; // 预先设置为启动失败状态
+                // 预设为启动失败状态，待启动成功后重置为创建成功状态
+                this.serviceState = ServiceState.START_FAILED;
 
-                this.checkConfig(); // 检查group配置
+                // 检查生产者group配置
+                this.checkConfig();
 
-                // 如果group组不是MixAll.CLIENT_INNER_PRODUCER_GROUP，就重新设置下实例名字
+                // 如果group组不是MixAll.CLIENT_INNER_PRODUCER_GROUP，就重新设置下实例名字为：pid#系统时间
                 if (!this.defaultMQProducer.getProducerGroup().equals(MixAll.CLIENT_INNER_PRODUCER_GROUP)) {
                     this.defaultMQProducer.changeInstanceNameToPID();
                 }

@@ -26,7 +26,7 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.remoting.RPCHook;
 
 /**
- * MQClientManager是个单例类
+ * MQClientManager是个单例类，用于创建MQClientInstance对象
  */
 public class MQClientManager {
     private final static InternalLogger log = ClientLogger.getLog();
@@ -35,6 +35,9 @@ public class MQClientManager {
     private ConcurrentMap<String/* clientId */, MQClientInstance> factoryTable =
         new ConcurrentHashMap<String, MQClientInstance>();
 
+    /**
+     * 私有化构造函数，单例类
+     */
     private MQClientManager() {
 
     }
