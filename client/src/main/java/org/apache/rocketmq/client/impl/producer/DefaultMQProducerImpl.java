@@ -240,7 +240,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 // 4、使用MQClientManager类单例对象创建一个MQClientInstance对象
                 this.mQClientFactory = MQClientManager.getInstance().getOrCreateMQClientInstance(this.defaultMQProducer, rpcHook);
 
-                // 进行注册
+                // 5、向MQClientInstance对象注册生产者信息
                 boolean registerOK = mQClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
                 if (!registerOK) {
                     this.serviceState = ServiceState.CREATE_JUST;
@@ -249,10 +249,10 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             null);
                 }
 
-                // 往存放topic信息表中放个topic信息
+                // 6、往topic发布缓存中放入topic信息
                 this.topicPublishInfoTable.put(this.defaultMQProducer.getCreateTopicKey(), new TopicPublishInfo());
 
-                // 最后是启动这个MQClientInstance对象
+                // 7、最后是启动这个MQClientInstance对象
                 if (startFactory) {
                     mQClientFactory.start();
                 }

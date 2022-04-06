@@ -131,17 +131,26 @@ public abstract class RebalanceImpl {
         return result;
     }
 
+    /**
+     * 调用通信层接口，锁定broker端mq
+     * @param mq
+     * @return
+     */
     public boolean lock(final MessageQueue mq) {
+        // 1、从MQClientInstance#brokerAddrTable缓存查找broker信息
         FindBrokerResult findBrokerResult = this.mQClientFactory.findBrokerAddressInSubscribe(mq.getBrokerName(), MixAll.MASTER_ID, true);
         if (findBrokerResult != null) {
+            // 2、构建requestBody对象，用于发送lock mq请求
             LockBatchRequestBody requestBody = new LockBatchRequestBody();
             requestBody.setConsumerGroup(this.consumerGroup);
             requestBody.setClientId(this.mQClientFactory.getClientId());
             requestBody.getMqSet().add(mq);
 
             try {
+                // 3、调用通信层api，远程锁定mq
                 Set<MessageQueue> lockedMq =
                     this.mQClientFactory.getMQClientAPIImpl().lockBatchMQ(findBrokerResult.getBrokerAddr(), requestBody, 1000);
+                // 4、遍历锁定成功的mq，维护processQueueTable缓存的processQueue状态
                 for (MessageQueue mmqq : lockedMq) {
                     ProcessQueue processQueue = this.processQueueTable.get(mmqq);
                     if (processQueue != null) {
@@ -150,6 +159,7 @@ public abstract class RebalanceImpl {
                     }
                 }
 
+                // 5、检查请求体中的mq是否也在成功锁定的mq集合中
                 boolean lockOK = lockedMq.contains(mq);
                 log.info("the message queue lock {}, {} {}",
                     lockOK ? "OK" : "Failed",
@@ -326,6 +336,14 @@ public abstract class RebalanceImpl {
         }
     }
 
+    /**
+     * 更新processQueueTable缓存中key为topic的信息
+     *
+     * @param topic
+     * @param mqSet
+     * @param isOrder
+     * @return
+     */
     private boolean updateProcessQueueTableInRebalance(final String topic, final Set<MessageQueue> mqSet,
         final boolean isOrder) {
         boolean changed = false;
@@ -336,7 +354,9 @@ public abstract class RebalanceImpl {
             MessageQueue mq = next.getKey();
             ProcessQueue pq = next.getValue();
 
+            // 从processQueueTable缓存中取指定topic的mq
             if (mq.getTopic().equals(topic)) {
+                // 把不在mqSet集合中的mq和pq清除掉
                 if (!mqSet.contains(mq)) {
                     pq.setDropped(true);
                     if (this.removeUnnecessaryMessageQueue(mq, pq)) {
@@ -344,11 +364,11 @@ public abstract class RebalanceImpl {
                         changed = true;
                         log.info("doRebalance, {}, remove unnecessary mq, {}", consumerGroup, mq);
                     }
-                } else if (pq.isPullExpired()) {
+                } else if (pq.isPullExpired()) { // 如果拉取超时
                     switch (this.consumeType()) {
-                        case CONSUME_ACTIVELY:
+                        case CONSUME_ACTIVELY: // 积极、主动
                             break;
-                        case CONSUME_PASSIVELY:
+                        case CONSUME_PASSIVELY: // 消极、被动
                             pq.setDropped(true);
                             if (this.removeUnnecessaryMessageQueue(mq, pq)) {
                                 it.remove();
@@ -366,7 +386,9 @@ public abstract class RebalanceImpl {
 
         List<PullRequest> pullRequestList = new ArrayList<PullRequest>();
         for (MessageQueue mq : mqSet) {
+            // 如果processQueueTable缓存不包含mqSet中的某个mq，尝试添加该mq到processQueueTable缓存
             if (!this.processQueueTable.containsKey(mq)) {
+                // 添加mq前需要锁定mq（通过通信层api，远程锁定broker的mq）
                 if (isOrder && !this.lock(mq)) {
                     log.warn("doRebalance, {}, add a new mq failed, {}, because lock failed", consumerGroup, mq);
                     continue;
@@ -377,6 +399,7 @@ public abstract class RebalanceImpl {
 
                 long nextOffset = -1L;
                 try {
+                    // 计算拉取消息开始偏移量，该值>=0的话，赋值给pullRequest
                     nextOffset = this.computePullFromWhereWithException(mq);
                 } catch (MQClientException e) {
                     log.info("doRebalance, {}, compute offset failed, {}", consumerGroup, mq);

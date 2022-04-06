@@ -164,6 +164,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
      * 这里其实就是netty client 创建过程，有些参数需要注意下，比如它默认使用4个线程的线程池来处理定义的那堆handler；
      * 再就是netty的一些参数，tcp的参数，往后看启动了一个定时任务，主要是用来扫描响应表的，
      * 其实就是把超时的响应进行回调，或者是返回，这个任务是1s执行一次。
+     * <H3>本方法只创建了bootstrap对象，并没有connect服务端；只有在真正需要通信时，在createChannel方法中才会进行connect操作。
      */
     @Override
     public void start() {

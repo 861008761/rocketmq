@@ -258,6 +258,9 @@ public class MQClientAPIImpl {
         this.remotingClient.updateNameServerAddressList(list);
     }
 
+    /**
+     * 对remoting通信层客户端启动的封装，此处使用的对象是netty客户端
+     */
     public void start() {
         this.remotingClient.start();
     }
@@ -1144,6 +1147,17 @@ public class MQClientAPIImpl {
         throw new MQBrokerException(response.getCode(), response.getRemark(), addr);
     }
 
+    /**
+     * 批量锁定mq
+     *
+     * @param addr broker地址
+     * @param requestBody 请求lock的主消息体
+     * @param timeoutMillis 超时时间
+     * @return 成功锁定的mq集合
+     * @throws RemotingException
+     * @throws MQBrokerException
+     * @throws InterruptedException
+     */
     public Set<MessageQueue> lockBatchMQ(
         final String addr,
         final LockBatchRequestBody requestBody,

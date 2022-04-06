@@ -165,6 +165,11 @@ public class ProcessQueue {
         return dispatchToConsume;
     }
 
+    /**
+     * span：跨度、范围
+     * 获取queueOffset最大范围
+     * @return
+     */
     public long getMaxSpan() {
         try {
             this.treeMapLock.readLock().lockInterruptibly();

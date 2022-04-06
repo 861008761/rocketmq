@@ -980,6 +980,10 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
         this.producerGroup = producerGroup;
     }
 
+    /**
+     * topic默认值：TBW102
+     * @return
+     */
     public String getCreateTopicKey() {
         return createTopicKey;
     }

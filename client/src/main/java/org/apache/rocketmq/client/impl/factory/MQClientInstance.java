@@ -261,20 +261,32 @@ public class MQClientInstance {
             switch (this.serviceState) {
                 case CREATE_JUST: // 服务刚创建，还没启动时
                     this.serviceState = ServiceState.START_FAILED;
+                    // 1、如果不指定namesrv地址，从tb官网获取namesrv地址
                     // If not specified,looking address from name server
                     if (null == this.clientConfig.getNamesrvAddr()) {
                         this.mQClientAPIImpl.fetchNameServerAddr();
                     }
+
+                    // 2、生产者/消费者netty客户端初始化bootstrap对象，用于收发消息
+                    // 方法中没有connect，懒加载，只有真正收发消息时才开始连接broker
                     // Start request-response channel
-                    this.mQClientAPIImpl.start(); // 生产者netty客户端初始化，并没有启动，还不知道broker地址
+                    this.mQClientAPIImpl.start();
+
+                    // 3、开启任务调度
                     // Start various schedule tasks
-                    this.startScheduledTask(); // 开启任务调度
+                    this.startScheduledTask();
+
+                    // 4、启动拉取消息服务，消费者使用的线程
                     // Start pull service
-                    this.pullMessageService.start(); // 消费者使用的线程
+                    this.pullMessageService.start();
+
+                    // 5、启动客户端负载均衡服务，消费者使用的线程
                     // Start rebalance service
-                    this.rebalanceService.start(); // 消费者使用的线程
+                    this.rebalanceService.start();
+
+                    // 6、调用MQClientInstance内部对象defaultMQProducer的start方法
                     // Start push service
-                    this.defaultMQProducer.getDefaultMQProducerImpl().start(false); // 消费者使用的线程
+                    this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
                     log.info("the client factory [{}] start OK", this.clientId);
                     this.serviceState = ServiceState.RUNNING;
                     break;
@@ -288,11 +300,11 @@ public class MQClientInstance {
 
     /**
      * 开启调度任务
-     * 获取namesrv
-     * 从nameserv获取topic信息的任务
-     * 清除下线的broker，然后往所有的broker发送心跳消息
-     * 持久化所有消费者偏移量
-     * 调整消费者线程池
+     * <P>（1）获取namesrv（周期为120秒）
+     * <P>（2）从nameserv获取topic信息的任务（周期为30秒）
+     * <P>（3）清除下线的broker，然后往所有的broker发送心跳消息（周期为30秒）
+     * <P>（4）持久化所有消费者偏移量（周期为5秒）
+     * <P>（5）调整消费者线程池（周期为60秒）
      */
     private void startScheduledTask() {
         // 获取namesrv 两分钟执行一次
@@ -683,7 +695,7 @@ public class MQClientInstance {
                             }
                         }
                     } else {
-                        // 直接到namesrv上尝试取topic的路由信息
+                        // 直接到namesrv上尝试取topic的路由信息（startScheduledTask方法，启动定时从namesrv获取topic路由信息任务，走此分支）
                         topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, 1000 * 3);
                     }
                     // 成功的从namesrv上获取到topic的路由信息之后，进行下一步处理
