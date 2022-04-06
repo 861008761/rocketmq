@@ -29,6 +29,14 @@ import org.apache.rocketmq.common.utils.ThreadUtils;
 
 public class PullMessageService extends ServiceThread {
     private final InternalLogger log = ClientLogger.getLog();
+    /**
+     * “拉取请求”队列
+     * RebalanceService类启动时，通过RebalanceService#run -> MQClientInstance#doRebalance -> DefaultMQPushConsumerImpl#doRebalance
+     * -> RebalanceImpl#doRebalance -> RebalanceImpl#rebalanceByTopic -> RebalanceImpl#updateProcessQueueTableInRebalance
+     * -> RebalancePushImpl#dispatchPullRequest -> DefaultMQPushConsumerImpl#executePullRequestImmediately
+     * -> PullMessageService#executePullRequestImmediately 调用到当前类的方法，将PullRequest请求放入队列中
+     * 在run方法中，会take到请求，进行pullMessage
+     */
     private final LinkedBlockingQueue<PullRequest> pullRequestQueue = new LinkedBlockingQueue<PullRequest>();
     private final MQClientInstance mQClientFactory;
     private final ScheduledExecutorService scheduledExecutorService = Executors
