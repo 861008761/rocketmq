@@ -41,6 +41,12 @@ import org.apache.rocketmq.common.protocol.heartbeat.ConsumeType;
 import org.apache.rocketmq.common.protocol.heartbeat.MessageModel;
 import org.apache.rocketmq.common.protocol.heartbeat.SubscriptionData;
 
+/**
+ * 三个子类：
+ * <P>（1）RebalanceLitePullImpl
+ * <P>（2）RebalancePullImpl
+ * <P>（3）RebalancePushImpl
+ */
 public abstract class RebalanceImpl {
     protected static final InternalLogger log = ClientLogger.getLog();
     protected final ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable = new ConcurrentHashMap<MessageQueue, ProcessQueue>(64);
@@ -386,6 +392,7 @@ public abstract class RebalanceImpl {
 
         List<PullRequest> pullRequestList = new ArrayList<PullRequest>();
         for (MessageQueue mq : mqSet) {
+            // 消费者刚启动的时候，缓存是空，进入此分支
             // 如果processQueueTable缓存不包含mqSet中的某个mq，尝试添加该mq到processQueueTable缓存
             if (!this.processQueueTable.containsKey(mq)) {
                 // 添加mq前需要锁定mq（通过通信层api，远程锁定broker的mq）

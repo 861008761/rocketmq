@@ -21,6 +21,9 @@ import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.common.ServiceThread;
 import org.apache.rocketmq.logging.InternalLogger;
 
+/**
+ * 消费者端负载均衡，同时负责构造拉取消息请求，放入PullMessageService的队列中
+ */
 public class RebalanceService extends ServiceThread {
     /**
      * doRebalance周期，默认值为20秒

@@ -92,6 +92,9 @@ public class DefaultLitePullConsumerImpl implements MQConsumerInner {
 
     private OffsetStore offsetStore;
 
+    /**
+     * DefaultLitePullConsumerImpl -> RebalanceLitePullImpl
+     */
     private RebalanceImpl rebalanceImpl = new RebalanceLitePullImpl(this);
 
     private enum SubscriptionType {
